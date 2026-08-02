@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Neue Haas", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-stone-200;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-off-white text-ink font-body antialiased;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    @apply bg-ink text-off-white;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-micro uppercase tracking-widest2 text-stone-500 font-mono;
+  }
+
+  .container-lipids {
+    @apply mx-auto w-full max-w-[1920px] px-gutter;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-ink text-off-white px-8 py-4 text-micro uppercase tracking-widest2 font-mono transition-colors duration-700 ease-cinematic hover:bg-stone-700 disabled:opacity-40 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 border border-ink text-ink px-8 py-4 text-micro uppercase tracking-widest2 font-mono transition-colors duration-700 ease-cinematic hover:bg-ink hover:text-off-white disabled:opacity-40 disabled:pointer-events-none;
+  }
+
+  .link-underline {
+    @apply relative after:absolute after:left-0 after:-bottom-1 after:h-px after:w-0 after:bg-current after:transition-all after:duration-700 after:ease-cinematic hover:after:w-full;
+  }
+}
+
+@layer utilities {
+  .fade-mask-b {
+    mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+  }
+}
