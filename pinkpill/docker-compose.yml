@@ -1,8 +1,9 @@
 # Self-hosted PinkPill: app + PostgreSQL on one machine (e.g. an always-free cloud VM).
-# 1. cp .env.example .env and set APP_URL, POSTGRES_PASSWORD, SMTP_URL, MAIL_FROM
+# Alternative to Koyeb/Neon/R2 (see DEPLOYMENT.md): everything on one VM with persistent disks.
+# 1. cp .env.example .env and set APP_URL, POSTGRES_PASSWORD, RESEND_API_KEY, MAIL_FROM
 # 2. docker compose up -d
 # 3. docker compose exec app node server/scripts/create-admin.js
-# Put a TLS-terminating reverse proxy (e.g. Caddy) in front and set COOKIE_SECURE=true.
+# Put a TLS-terminating reverse proxy (e.g. Caddy) in front of 127.0.0.1:8000.
 services:
   db:
     image: postgres:16
@@ -27,10 +28,12 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://pinkpill:${POSTGRES_PASSWORD}@db:5432/pinkpill
+      STORAGE_DRIVER: local
+      ALLOW_LOCAL_STORAGE_IN_PRODUCTION: "true"   # the uploads volume below is persistent
       STORAGE_DIR: /app/storage/uploads
       TRUST_PROXY: "1"
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - uploads:/app/storage/uploads
 volumes:

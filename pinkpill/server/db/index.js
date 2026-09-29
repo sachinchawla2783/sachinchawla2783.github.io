@@ -30,8 +30,8 @@ function poolOptions() {
     max: config.db.poolMax,
     idleTimeoutMillis: config.db.idleTimeoutMs,
     connectionTimeoutMillis: config.db.connectionTimeoutMs,
-    statement_timeout: config.db.statementTimeoutMs,
-    query_timeout: config.db.statementTimeoutMs + 5000,
+    // Client-side timeout: startup parameters like statement_timeout can be rejected by poolers.
+    query_timeout: config.db.statementTimeoutMs,
     application_name: 'pinkpill',
     keepAlive: true,
   };

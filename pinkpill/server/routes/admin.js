@@ -176,6 +176,7 @@ router.post('/forums', async (req, res) => {
     await db.tx(async (q) => {
       await q.query(`INSERT INTO forums (id, category_id, parent_id, title, description, icon, position, staff_only, members_only, rating_enabled, notice)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, [id, d.categoryId, d.parentId, d.title, d.description, d.icon, d.position, d.staffOnly, d.membersOnly, d.ratingEnabled, d.notice]);
+      require('../lib/forums').invalidate();
       await audit(q, req, 'forum.create', 'forum', id, d);
     });
   } catch (e) { if (e.code === '23505') throw conflict('A forum with that id already exists.'); throw e; }
@@ -197,7 +198,8 @@ router.patch('/forums/:id', async (req, res) => {
     if (sets.length) await q.query(`UPDATE forums SET ${sets.join(', ')} WHERE id = $1`, vals);
     // Keep sub-forums in the same category as their parent.
     if ('categoryId' in d) await q.query('UPDATE forums SET category_id = $2 WHERE id = ANY($3)', [id, d.categoryId, descendants(await allForums(q), id)]);
-    await audit(q, req, 'forum.update', 'forum', id, d);
+    require('../lib/forums').invalidate();
+      await audit(q, req, 'forum.update', 'forum', id, d);
   });
   res.json({ ok: true });
 });
@@ -210,7 +212,8 @@ router.delete('/forums/:id', async (req, res) => {
   await db.tx(async (q) => {
     const r = await q.query('DELETE FROM forums WHERE id = $1', [id]);
     if (!r.rowCount) throw notFound();
-    await audit(q, req, 'forum.delete', 'forum', id, {});
+    require('../lib/forums').invalidate();
+      await audit(q, req, 'forum.delete', 'forum', id, {});
   });
   res.json({ ok: true });
 });

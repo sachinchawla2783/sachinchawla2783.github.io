@@ -1,9 +1,15 @@
 'use strict';
 const db = require('../db');
 
+/* The forum list is small and read on almost every request, so it's cached briefly in memory
+   (single instance). Admin changes call invalidate(); reads inside a transaction bypass the cache. */
+let cache = null, cachedAt = 0;
 async function allForums(q = db) {
-  return q.many('SELECT * FROM forums ORDER BY position, title');
+  if (q !== db) return q.many('SELECT * FROM forums ORDER BY position, title');
+  if (!cache || Date.now() - cachedAt > 10000) { cache = await db.many('SELECT * FROM forums ORDER BY position, title'); cachedAt = Date.now(); }
+  return cache;
 }
+function invalidate() { cache = null; }
 
 /* Ids of forums this viewer may see. Members-only forums (and their descendants) are hidden from guests. */
 async function visibleForumIds(user, q = db) {
@@ -23,4 +29,4 @@ function descendants(forums, id) {
   return out;
 }
 
-module.exports = { allForums, visibleForumIds, assertForumVisible, descendants };
+module.exports = { invalidate, allForums, visibleForumIds, assertForumVisible, descendants };

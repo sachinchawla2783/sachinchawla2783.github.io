@@ -23,22 +23,28 @@ async function ensureTable(client) {
   await client.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum text');
 }
 
+/* Each migration runs in its own transaction that first takes a transaction-scoped advisory lock and
+   re-checks schema_migrations. Transaction-scoped locks work through transaction-mode poolers such as
+   Neon's PgBouncer endpoint (session-level locks would not). */
 async function migrate(pool, { log = (m) => process.stdout.write(m + '\n') } = {}) {
   const client = await pool.connect();
   const applied = [];
   try {
-    await client.query('SELECT pg_advisory_lock($1)', [LOCK_ID]);
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1)', [LOCK_ID]);
     await ensureTable(client);
-    const done = new Map((await client.query('SELECT name, checksum FROM schema_migrations')).rows.map((r) => [r.name, r.checksum]));
+    await client.query('COMMIT');
     for (const file of files()) {
       const sql = fs.readFileSync(path.join(DIR, file), 'utf8');
-      if (done.has(file)) {
-        const prev = done.get(file);
-        if (prev && prev !== checksum(sql)) log(`[migrate] WARNING: ${file} changed after it was applied (migrations must never be edited).`);
-        continue;
-      }
       try {
         await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1)', [LOCK_ID]);
+        const prev = (await client.query('SELECT checksum FROM schema_migrations WHERE name = $1', [file])).rows[0];
+        if (prev) {
+          await client.query('COMMIT');
+          if (prev.checksum && prev.checksum !== checksum(sql)) log(`[migrate] WARNING: ${file} changed after it was applied (migrations must never be edited).`);
+          continue;
+        }
         await client.query(sql);
         await client.query('INSERT INTO schema_migrations (name, checksum) VALUES ($1, $2)', [file, checksum(sql)]);
         await client.query('COMMIT');
@@ -50,7 +56,6 @@ async function migrate(pool, { log = (m) => process.stdout.write(m + '\n') } = {
       log(`[migrate] applied ${file}`);
     }
   } finally {
-    await client.query('SELECT pg_advisory_unlock($1)', [LOCK_ID]).catch(() => {});
     client.release();
   }
   return applied;

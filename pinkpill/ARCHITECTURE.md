@@ -89,7 +89,7 @@ images consume the ~5 MB quota, there are no sessions, email, resets, or server-
 | Rate limiting | **express-rate-limit** + per-account login lockout + per-user post flood control | |
 | Uploads | **multer** (memory, size-capped) → **sharp** (decode, strip metadata, resize, re-encode to WebP) | Re-encoding defeats polyglots/executables. |
 | Object storage | Driver interface: `local` (disk outside web root) or `s3` (any S3-compatible, e.g. Cloudflare R2 free tier) | Portable. |
-| Email | **nodemailer** (SMTP) or `console` transport in development | Any free SMTP (Brevo, Mailjet free tiers, self-hosted). |
+| Email | **Resend HTTP API** in production; `file` transport in development | No SMTP dependency from the app host. |
 | Tests | `node:test` + **supertest** (API), **Playwright** (E2E) | |
 | Frontend | The existing vanilla-JS SPA, served by the same Express app | Same origin → simple, safe cookies. |
 
@@ -196,7 +196,9 @@ deleted content, private conversations) are applied inside SQL queries, never af
 | admin.permissions | | | | ✓ |
 
 ### 2.8 Files
-`POST /api/uploads` (auth, CSRF, `upload.image`, 5 MB, one file). Accepts JPEG/PNG/GIF/WebP by
+`POST /api/uploads` (auth, CSRF, `upload.image`, 5 MB, one file). Images are linked to the content that
+embeds them (`attachment_refs`), and `GET /media/:uuid` only issues a short-lived signed URL to viewers who
+can see that content. Accepts JPEG/PNG/GIF/WebP by
 **decoding with sharp** (not by extension or MIME header), auto-rotates, strips metadata, resizes by purpose
 (avatar 256², banner 1500×500, post ≤1600px), re-encodes to WebP, stores under a random UUID key
 (no user-supplied filenames touch the filesystem). Served by `GET /media/:uuid` which looks the key up
@@ -212,11 +214,9 @@ decoded and re-stored through the upload pipeline. The browser no longer stores 
 theme, drafts and UI state stay in localStorage.
 
 ### 2.10 Deployment ($0, portable)
-One Node process serves `public/` and `/api`; it needs `DATABASE_URL`, `SESSION_SECRET`-free
-(sessions are DB-backed), `APP_URL`, SMTP and storage settings (see `.env.example`).
-Options: any free Node host + a free managed Postgres (e.g. Neon), or one always-free VM running
-`docker compose up` (app + Postgres + volume). `Dockerfile` and `docker-compose.yml` are provided.
-Nothing is provider-specific; the domain comes from `APP_URL`.
+Koyeb (Docker, free instance) + Neon (pooled PostgreSQL) + Cloudflare R2 (private uploads, presigned URLs)
++ Resend (email) + Cloudflare DNS/Turnstile. Full procedure, variables and limits: **DEPLOYMENT.md**.
+Nothing is provider-locked: the database, storage (S3 API), mail and domain are all configuration.
 
 ### 2.11 Security strategy
 Parameterised SQL only; JSON-only API (no server-rendered HTML); the frontend escapes before BBCode

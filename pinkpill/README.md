@@ -51,13 +51,13 @@ There are no built-in admin accounts or passwords. The first administrator is cr
 npm run dev            # http://localhost:3000, restarts on file changes
 ```
 
-In development, emails (verification, password reset) are printed to the server log
-(`MAIL_TRANSPORT=console`). Set `REQUIRE_EMAIL_VERIFICATION=true` to test the verification flow.
+In development, emails (verification, password reset) are written to `storage/mail/*.txt`
+(`MAIL_TRANSPORT=file`). Set `REQUIRE_EMAIL_VERIFICATION=true` to test the verification flow.
 
 ## Tests
 
 ```bash
-npm test               # 60+ API tests (node:test + supertest) against the pinkpill_test database
+npm test               # 90 API/security/storage/email/deployment tests against the pinkpill_test database
 npm run test:e2e       # Playwright end-to-end tests (starts its own server on :3200 using pinkpill_e2e)
 npm run test:all
 npm run build          # syntax-checks every file and verifies assets/migrations
@@ -76,91 +76,26 @@ upload an avatar, search, and verify that data survives a server restart.
 If Playwright can't find Chromium, set `PLAYWRIGHT_CHROMIUM_PATH` to a Chromium executable, or run
 `npx playwright install chromium`.
 
-## Environment variables
+## Environment variables and deployment
 
-All configuration comes from environment variables (see `.env.example`). No secrets live in code.
+Production deployment (Koyeb + Neon + Cloudflare R2 + Resend + Turnstile + your domain) is documented
+step by step in **[DEPLOYMENT.md](DEPLOYMENT.md)**, including every environment variable, DNS, backups,
+rollback, monitoring, free-tier limits and a smoke-test checklist. `.env.example` lists the local
+development variables. The server refuses to start in production with unsafe or incomplete settings.
 
-| Variable | Purpose |
-|---|---|
-| `NODE_ENV` | `production` enables secure cookies, HSTS, email verification by default |
-| `PORT` | HTTP port (default 3000) |
-| `APP_URL` | Public URL (your domain). Used in emails and the CSRF origin check |
-| `DATABASE_URL`, `DATABASE_SSL` | PostgreSQL connection; set `DATABASE_SSL=true` for hosted Postgres that requires TLS |
-| `DATABASE_URL_TEST` | Database used by `npm test` (its schema is dropped on every run) |
-| `SESSION_DAYS` | Sliding session lifetime (default 30) |
-| `COOKIE_SECURE` | Force the `Secure` cookie flag (default: on in production) |
-| `TRUST_PROXY` | Number of reverse proxies in front of the app, for correct client IPs/rate limits |
-| `REQUIRE_EMAIL_VERIFICATION` | Block posting until email is verified (default: on in production) |
-| `MAIL_TRANSPORT`, `MAIL_FROM`, `SMTP_URL` | `smtp` for real email (any SMTP provider), `console` for development |
-| `STORAGE_DRIVER` | `local` (disk, outside the web root) or `s3` (any S3-compatible bucket) |
-| `STORAGE_DIR` | Directory for local uploads |
-| `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | S3-compatible storage |
-| `UPLOAD_MAX_BYTES` | Maximum upload size (default 5 MB) |
-| `RATE_LIMITS` | Set `false` only for local load testing |
-
-## Production build and deployment
-
-There is no bundling step: `npm run build` validates the project, and `npm start` runs it.
-One Node process serves both the frontend (`public/`) and the API (`/api`), so cookies stay
-first-party and no CORS is needed.
-
-**Checklist**
-
-1. HTTPS in front of the app (Caddy, nginx, or your host's TLS). Set `APP_URL=https://your-domain`.
-2. `NODE_ENV=production`, `TRUST_PROXY=1` behind one proxy.
-3. PostgreSQL with backups. The app runs migrations on start.
-4. Real email: `MAIL_TRANSPORT=smtp`, `SMTP_URL=smtps://user:pass@host:465`, `MAIL_FROM`.
-5. Persistent uploads: a mounted volume for `STORAGE_DIR`, or `STORAGE_DRIVER=s3`.
-6. `npm run create-admin` once.
-
-### Quickest: Render (free, about 10 minutes, no terminal needed)
-
-The repository root contains `render.yaml`, a Render Blueprint that creates the app and its
-PostgreSQL database and connects them.
-
-1. Sign up at render.com with your GitHub account and give it access to this repository.
-2. **New → Blueprint**, choose this repository and the branch that contains `pinkpill/`
-   (e.g. `claude/pinkpill`, or `main` once merged). Click **Apply**. The first build takes a few minutes.
-3. Open the URL Render gives you (`https://pinkpill-xxxx.onrender.com`) and **register** your own account.
-4. In Render, open the `pinkpill` service → **Environment**, copy the generated `ADMIN_CLAIM_TOKEN`.
-   On the site, go to **`/#/claim-admin`**, paste it, and you become the super administrator.
-   Then delete `ADMIN_CLAIM_TOKEN` in Render (it only works once anyway).
-5. **Email** (recommended before inviting people): add `SMTP_URL` and `MAIL_FROM` from any free SMTP
-   provider, set `MAIL_TRANSPORT=smtp` and `REQUIRE_EMAIL_VERIFICATION=true`. Until then, the
-   blueprint keeps verification off so people can post, and emails only appear in Render's logs.
-6. **Your domain:** Settings → Custom Domains → add e.g. `kuroka.me`, create the DNS record Render
-   shows you, then set `APP_URL=https://kuroka.me`.
-
-Free-tier caveats (check Render's current limits): the app sleeps after inactivity (first visit
-takes ~30-60 s), the free database may expire after a trial period (back it up or move it to any
-free/cheap PostgreSQL by changing `DATABASE_URL`), and the free disk is not persistent, so uploaded
-images disappear on restart unless you set `STORAGE_DRIVER=s3` with a free S3-compatible bucket.
-
-### Option A: one free VM with Docker (fully self-contained)
-
-On any always-free Linux VM (several cloud providers offer one):
+Useful commands:
 
 ```bash
-git clone <this repo> && cd pinkpill
-cp .env.example .env    # set APP_URL, POSTGRES_PASSWORD, MAIL_*, SMTP_URL, COOKIE_SECURE=true
-docker compose up -d
-docker compose exec app node server/scripts/create-admin.js
+npm run db:migrate     # apply pending migrations (safe to repeat; locked against concurrent runs)
+npm run db:status      # list applied / pending migrations
+npm run db:backup      # pg_dump to backups/ (see DEPLOYMENT.md §12)
+npm run db:restore -- <file.dump> --target <empty database URL>
+npm run create-admin   # create the first super administrator from your terminal
+npm start              # production server (binds 0.0.0.0:$PORT; /health and /ready)
 ```
 
-Then put Caddy in front for automatic HTTPS: `your-domain { reverse_proxy 127.0.0.1:3000 }`.
-
-### Option B: free Node host + free managed PostgreSQL
-
-Deploy the `Dockerfile` (or `npm ci --omit=dev && npm start`) to any Node/Docker host with a free
-tier, and use any free hosted PostgreSQL (set `DATABASE_SSL=true` if it requires TLS). Free hosts
-often have ephemeral disks, so use `STORAGE_DRIVER=s3` with a free S3-compatible bucket for uploads.
-Free tiers typically sleep when idle, so the first request after a pause can be slow.
-
-Nothing is tied to one provider: the domain, database, mail and storage are all configuration.
-
-> **GitHub Pages note:** GitHub Pages only serves static files, so `pinkpill/public/` opened from
-> Pages would have no backend. Deploy the Node app instead and point your domain (e.g. `kuroka.me`)
-> at it.
+`docker-compose.yml` remains as an alternative single-VM setup (bundled PostgreSQL and a persistent
+uploads volume).
 
 ## Migrating data from the localStorage prototype
 
@@ -201,21 +136,4 @@ Unsafe requests need the session's `X-CSRF-Token` header (from `GET /api/auth/se
 
 ## Known limitations
 
-These are documented rather than faked:
-
-- **Rate limits are per process** (in memory). With several app instances, use a shared store
-  (e.g. Redis) for `express-rate-limit`.
-- **No CAPTCHA.** Mass signups are slowed by IP rate limits, a honeypot field and email
-  verification. A free CAPTCHA (e.g. hCaptcha or Turnstile) can be added to `/auth/register`.
-- **No real-time push.** Alert and inbox counts refresh every 60 seconds and on navigation.
-- **Member statistics are computed per request.** Fine for a community of thousands; for much
-  larger forums, denormalise post/reaction/rep counts onto `users`.
-- **S3 storage driver** is implemented but was not exercised against a live bucket in this repo's tests
-  (the local driver is fully tested).
-- **Uploaded images are served by unguessable URL** (`/media/<random UUID>`), without a per-request
-  permission check. An image posted in a members-only forum is private only as long as its link isn't shared.
-- **The `Dockerfile` and `docker-compose.yml` were not built in this repo's CI/sandbox** (no Docker
-  daemon was available). The same commands they run (`npm ci --omit=dev`, `node server/index.js`
-  in production mode against PostgreSQL) were tested directly.
-- **Uploads written during a failed import** may leave orphaned files in storage (the database side
-  rolls back cleanly).
+See DEPLOYMENT.md §15 (free-tier limitations) and §17 (the 18+ requirement is self-attested, not verified).
