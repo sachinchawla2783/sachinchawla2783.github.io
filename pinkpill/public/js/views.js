@@ -504,6 +504,14 @@
     }
   }
 
+  function claimAdmin() {
+    if (!me()) return loginRequired('Register or log in first, then come back to this page.');
+    return { title: 'Claim admin', html: '<div class="auth-wrap"><form class="block form" data-form="claim-admin"><h2 class="block-head">Claim administrator</h2><div class="block-body">' +
+      '<p class="small muted">Only works once, while the site has no super administrator. Enter the <code>ADMIN_CLAIM_TOKEN</code> you set on your server.</p>' +
+      '<label class="field"><span>Claim token</span><input name="token" type="password" required autocomplete="off"></label>' +
+      '<div class="form-actions"><button class="btn btn-primary">Make me super administrator</button></div></div></form></div>' };
+  }
+
   /* ---------- account ---------- */
 
   async function account([tab]) {
@@ -841,5 +849,5 @@
   function errorView(msg) { return { title: 'Oops', html: '<div class="notice notice--error">' + esc(msg) + '</div>' }; }
   function loginRequired(msg) { return { title: 'Log in required', html: '<div class="notice">' + esc(typeof msg === 'string' ? msg : 'You must be logged in to do that.') + ' <a class="btn btn-primary btn-sm" href="#/login?return=' + encodeURIComponent(location.hash) + '">Log in</a> <a class="btn btn-sm" href="#/register">Register</a></div>' }; }
 
-  PP.views = { repBadge, home, forum, threadView, postThread, members, online, member, login, register, lostPassword, resetPassword, verifyEmail, account, alerts, alertRow, conversations, conversationNew, conversation, search, tag, whatsNew, help, mod, notFound, errorView, loginRequired };
+  PP.views = { claimAdmin, repBadge, home, forum, threadView, postThread, members, online, member, login, register, lostPassword, resetPassword, verifyEmail, account, alerts, alertRow, conversations, conversationNew, conversation, search, tag, whatsNew, help, mod, notFound, errorView, loginRequired };
 })();

@@ -174,3 +174,19 @@ test('account deletion anonymises the user', async () => {
   assert.equal(row.status, 'deleted'); assert.equal(row.email, null); assert.equal(row.password_hash, null);
   assert.equal((await client().post('/api/auth/login', { login: 'gina', password: c.password })).status, 401);
 });
+
+test('claim-admin bootstrap: needs the secret, a login, and no existing super admin', async () => {
+  const config = require('../server/config');
+  config.adminClaimToken = 'x'.repeat(32);
+  try {
+    const c = await member({ username: 'owner' });
+    assert.equal((await client().post('/api/auth/claim-admin', { token: 'x'.repeat(32) })).status, 401);
+    assert.equal((await c.post('/api/auth/claim-admin', { token: 'wrong' })).status, 403);
+    assert.equal((await c.post('/api/auth/claim-admin', { token: 'x'.repeat(32) })).status, 200);
+    assert.equal((await c.get('/api/admin/stats')).status, 200);
+    const other = await member({ username: 'latecomer' });
+    assert.equal((await other.post('/api/auth/claim-admin', { token: 'x'.repeat(32) })).status, 403, 'only once');
+    config.adminClaimToken = '';
+    assert.equal((await other.post('/api/auth/claim-admin', { token: '' })).status, 422);
+  } finally { config.adminClaimToken = ''; }
+});

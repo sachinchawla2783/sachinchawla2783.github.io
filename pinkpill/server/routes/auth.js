@@ -3,7 +3,7 @@ const express = require('express');
 const db = require('../db');
 const config = require('../config');
 const { z, parse, username, password } = require('../lib/validate');
-const { hashPassword, verifyPassword, dummyVerify, randomToken, sha256 } = require('../lib/crypto');
+const { hashPassword, verifyPassword, dummyVerify, randomToken, sha256, safeEqual } = require('../lib/crypto');
 const { createSession, destroySession, revokeOtherSessions } = require('../lib/session');
 const { requireUser } = require('../lib/permissions');
 const { badRequest, unauthorized, forbidden, conflict } = require('../lib/errors');
@@ -93,6 +93,23 @@ router.post('/login', limits.login, async (req, res) => {
   await db.query('UPDATE users SET failed_logins = 0, locked_until = NULL, last_seen_at = now() WHERE id = $1', [u.id]);
   const csrfToken = await createSession(req, res, u.id, d.stay !== false);
   res.json({ csrfToken });
+});
+
+/* Bootstrap the first super administrator on hosts without a shell. Requires the ADMIN_CLAIM_TOKEN
+   secret, a logged-in account, and that no super administrator exists yet. */
+router.post('/claim-admin', requireUser, limits.login, async (req, res) => {
+  const { token } = parse(z.object({ token: z.string().min(1).max(200) }).strict(), req.body);
+  if (!config.adminClaimToken || !safeEqual(token, config.adminClaimToken)) throw forbidden('Invalid claim token.');
+  const done = await db.tx(async (q) => {
+    await q.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['claim-admin']);
+    if (await q.one(`SELECT 1 FROM users WHERE role_id = 'super_admin' AND status <> 'deleted'`)) return false;
+    await q.query(`UPDATE users SET role_id = 'super_admin', status = 'active', email_verified_at = coalesce(email_verified_at, now()) WHERE id = $1`, [req.user.id]);
+    await q.query(`INSERT INTO audit_log (actor_id, action, target_type, target_id, ip) VALUES ($1, 'admin.claimed', 'user', $2, $3)`, [req.user.id, String(req.user.id), req.ip || null]);
+    return true;
+  });
+  if (!done) throw forbidden('A super administrator already exists.');
+  require('../lib/permissions').invalidateRoles();
+  res.json({ ok: true });
 });
 
 router.post('/logout', async (req, res) => {

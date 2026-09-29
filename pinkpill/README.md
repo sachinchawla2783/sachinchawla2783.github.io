@@ -113,6 +113,29 @@ first-party and no CORS is needed.
 5. Persistent uploads: a mounted volume for `STORAGE_DIR`, or `STORAGE_DRIVER=s3`.
 6. `npm run create-admin` once.
 
+### Quickest: Render (free, about 10 minutes, no terminal needed)
+
+The repository root contains `render.yaml`, a Render Blueprint that creates the app and its
+PostgreSQL database and connects them.
+
+1. Sign up at render.com with your GitHub account and give it access to this repository.
+2. **New → Blueprint**, choose this repository and the branch that contains `pinkpill/`
+   (e.g. `claude/pinkpill`, or `main` once merged). Click **Apply**. The first build takes a few minutes.
+3. Open the URL Render gives you (`https://pinkpill-xxxx.onrender.com`) and **register** your own account.
+4. In Render, open the `pinkpill` service → **Environment**, copy the generated `ADMIN_CLAIM_TOKEN`.
+   On the site, go to **`/#/claim-admin`**, paste it, and you become the super administrator.
+   Then delete `ADMIN_CLAIM_TOKEN` in Render (it only works once anyway).
+5. **Email** (recommended before inviting people): add `SMTP_URL` and `MAIL_FROM` from any free SMTP
+   provider, set `MAIL_TRANSPORT=smtp` and `REQUIRE_EMAIL_VERIFICATION=true`. Until then, the
+   blueprint keeps verification off so people can post, and emails only appear in Render's logs.
+6. **Your domain:** Settings → Custom Domains → add e.g. `kuroka.me`, create the DNS record Render
+   shows you, then set `APP_URL=https://kuroka.me`.
+
+Free-tier caveats (check Render's current limits): the app sleeps after inactivity (first visit
+takes ~30-60 s), the free database may expire after a trial period (back it up or move it to any
+free/cheap PostgreSQL by changing `DATABASE_URL`), and the free disk is not persistent, so uploaded
+images disappear on restart unless you set `STORAGE_DRIVER=s3` with a free S3-compatible bucket.
+
 ### Option A: one free VM with Docker (fully self-contained)
 
 On any always-free Linux VM (several cloud providers offer one):

@@ -21,6 +21,7 @@
     [/^\/lost-password$/, views.lostPassword],
     [/^\/reset-password$/, views.resetPassword],
     [/^\/verify-email$/, views.verifyEmail],
+    [/^\/claim-admin$/, views.claimAdmin],
     [/^\/account(?:\/([a-z-]+))?$/, views.account],
     [/^\/alerts$/, views.alerts],
     [/^\/conversations$/, views.conversations],
@@ -411,6 +412,11 @@
       await api.post('/auth/register', { username: d.username, email: d.email, password: d.password, birthday: d.birthday, agree: !!d.agree, website: d.website || '' });
       await afterLogin('#/forums/f-intro');
       toast('Welcome to PinkPill, ' + me().username + '! 💗' + (me().mustVerifyEmail ? ' Check your email to verify your account.' : ''));
+    },
+    async 'claim-admin'(f, d) {
+      await api.post('/auth/claim-admin', { token: d.token });
+      await afterLogin('#/mod');
+      toast('You are now the super administrator. Remove ADMIN_CLAIM_TOKEN from your server settings.');
     },
     async 'reset-request'(f, d) {
       const r = await api.post('/auth/password-reset/request', { email: d.email });
