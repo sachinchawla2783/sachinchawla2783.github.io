@@ -6,7 +6,8 @@ const { z, parse, username, password } = require('../lib/validate');
 const { hashPassword, verifyPassword, dummyVerify, randomToken, sha256, safeEqual } = require('../lib/crypto');
 const { createSession, destroySession, revokeOtherSessions } = require('../lib/session');
 const { requireUser } = require('../lib/permissions');
-const { badRequest, unauthorized, forbidden, conflict } = require('../lib/errors');
+const { badRequest, unauthorized, forbidden, conflict, tooMany } = require('../lib/errors');
+const turnstile = require('../lib/turnstile');
 const mailer = require('../lib/mailer');
 const settings = require('../lib/settings');
 const limits = require('../lib/limits');
@@ -19,7 +20,7 @@ const COLORS = ['#ec4899', '#a855f7', '#f43f5e', '#db2777', '#c026d3'];
 
 router.get('/session', async (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ user: await mePayload(req.user), csrfToken: req.csrfToken, requireEmailVerification: config.requireEmailVerification });
+  res.json({ user: await mePayload(req.user), csrfToken: req.csrfToken, requireEmailVerification: config.requireEmailVerification, turnstile: { siteKey: config.turnstile.siteKey || null, onLogin: !!config.turnstile.siteKey && config.turnstile.onLogin } });
 });
 
 const registerSchema = z.object({
@@ -29,6 +30,7 @@ const registerSchema = z.object({
   birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter your date of birth.'),
   agree: z.literal(true, { errorMap: () => ({ message: 'You must accept the terms and rules.' }) }),
   website: z.string().max(0).optional(),   // honeypot: real users never fill this hidden field
+  turnstileToken: z.string().max(2048).optional(),
 }).strict();
 
 function isAdult(dateStr) {
@@ -47,6 +49,7 @@ async function issueVerification(q, user) {
 }
 
 router.post('/register', limits.register, async (req, res) => {
+  await turnstile.require(req);
   if (!(await settings.get('registration_open', true))) throw forbidden('Registration is currently closed.');
   const d = parse(registerSchema, req.body);
   if (!isAdult(d.birthday)) throw forbidden('You must be 18 or older to join PinkPill.');
@@ -65,18 +68,20 @@ router.post('/register', limits.register, async (req, res) => {
     if (err.code === '23505') throw conflict(/email/.test(err.constraint || '') ? 'An account with that email already exists.' : 'That username is taken.');
     throw err;
   }
-  await mailer.sendVerification(user.email, user.username, token);
+  const emailSent = await mailer.sendVerification(user.email, user.username, token);
   const csrfToken = await createSession(req, res, user.id, true);
-  res.status(201).json({ csrfToken, emailVerificationRequired: config.requireEmailVerification });
+  res.status(201).json({ csrfToken, emailVerificationRequired: config.requireEmailVerification, emailSent });
 });
 
 const loginSchema = z.object({
   login: z.string().trim().min(1).max(254),
   password: z.string().min(1).max(200),
   stay: z.boolean().optional(),
+  turnstileToken: z.string().max(2048).optional(),
 }).strict();
 
 router.post('/login', limits.login, async (req, res) => {
+  if (config.turnstile.onLogin) await turnstile.require(req);
   const d = parse(loginSchema, req.body);
   const u = await db.one(`SELECT id, password_hash, status, failed_logins, locked_until FROM users
     WHERE (username = $1 OR email = $1) AND status <> 'deleted'`, [d.login]);
@@ -117,7 +122,7 @@ router.post('/logout', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/verify-email', limits.email, async (req, res) => {
+router.post('/verify-email', limits.verifyEmail, async (req, res) => {
   const { token } = parse(z.object({ token: z.string().min(10).max(100) }).strict(), req.body);
   const ok = await db.tx(async (q) => {
     const row = await q.one(`UPDATE email_verifications SET used_at = now()
@@ -131,16 +136,17 @@ router.post('/verify-email', limits.email, async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/resend-verification', requireUser, limits.email, async (req, res) => {
+router.post('/resend-verification', requireUser, limits.verification, async (req, res) => {
   const u = await db.one('SELECT id, username, email, status FROM users WHERE id = $1', [req.user.id]);
   if (u.status === 'active') throw badRequest('Your email is already verified.');
   const token = await issueVerification(db, u);
-  await mailer.sendVerification(u.email, u.username, token);
+  if (!(await mailer.sendVerification(u.email, u.username, token))) throw tooMany('We couldn\'t send another email right now. Please try again later.');
   res.json({ ok: true });
 });
 
-router.post('/password-reset/request', limits.email, async (req, res) => {
-  const { email } = parse(z.object({ email: z.string().trim().toLowerCase().email().max(254) }).strict(), req.body);
+router.post('/password-reset/request', limits.passwordReset, async (req, res) => {
+  const { email } = parse(z.object({ email: z.string().trim().toLowerCase().email().max(254), turnstileToken: z.string().max(2048).optional() }).strict(), req.body);
+  await turnstile.require(req);
   const u = await db.one(`SELECT id, username, email FROM users WHERE email = $1 AND status <> 'deleted'`, [email]);
   if (u) {
     const token = randomToken(32);
@@ -151,7 +157,7 @@ router.post('/password-reset/request', limits.email, async (req, res) => {
   res.json({ ok: true, message: 'If an account uses that email, a reset link has been sent.' });
 });
 
-router.post('/password-reset/confirm', limits.email, async (req, res) => {
+router.post('/password-reset/confirm', limits.passwordReset, async (req, res) => {
   const d = parse(z.object({ token: z.string().min(10).max(100), password }).strict(), req.body);
   const hash = await hashPassword(d.password);
   const userId = await db.tx(async (q) => {
@@ -166,6 +172,8 @@ router.post('/password-reset/confirm', limits.email, async (req, res) => {
   });
   if (!userId) throw badRequest('This reset link is invalid or has expired.');
   await revokeOtherSessions(userId, null);
+  const who = await db.one('SELECT username, email FROM users WHERE id = $1', [userId]);
+  if (who && who.email) await mailer.sendPasswordChanged(who.email, who.username);
   res.json({ ok: true });
 });
 

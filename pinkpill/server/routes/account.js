@@ -32,6 +32,8 @@ router.post('/password', async (req, res) => {
   if (!(await verifyPassword(u.password_hash, d.current))) throw forbidden('Your current password is incorrect.');
   await db.query('UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1', [req.user.id, await hashPassword(d.new)]);
   await revokeOtherSessions(req.user.id, req.sessionId);
+  const who = await db.one('SELECT username, email FROM users WHERE id = $1', [req.user.id]);
+  if (who && who.email) await require('../lib/mailer').sendPasswordChanged(who.email, who.username);
   res.json({ ok: true });
 });
 

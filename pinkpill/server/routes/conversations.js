@@ -67,7 +67,7 @@ router.get('/conversations', async (req, res) => {
   res.json({ conversations: list, users: await summaries(list.flatMap((c) => [c.starterId, c.last && c.last.authorId, ...c.participants])) });
 });
 
-router.post('/conversations', limits.write, async (req, res) => {
+router.post('/conversations', limits.message, async (req, res) => {
   assertCan(req.user, 'conversation.start');
   const d = parse(z.object({ to: namesSchema, title: z.string().trim().min(1).max(100), content: content(20000), allowInvite: z.boolean().optional() }).strict(), req.body);
   assertSafeContent(d.content);
@@ -104,7 +104,7 @@ router.get('/conversations/:id', async (req, res) => {
   });
 });
 
-router.post('/conversations/:id/messages', limits.write, async (req, res) => {
+router.post('/conversations/:id/messages', limits.message, async (req, res) => {
   assertCan(req.user, 'conversation.start');
   const c = await loadConversation(req.params.id, req.user);
   const d = parse(z.object({ content: content(20000) }).strict(), req.body);

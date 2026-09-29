@@ -12,7 +12,7 @@ const { activity, onlineList, profilePostsJson } = require('./members');
 const router = express.Router();
 
 /* Full-text search in PostgreSQL, restricted to forums the viewer can see. */
-router.get('/search', async (req, res) => {
+router.get('/search', require('../lib/limits').search, async (req, res) => {
   const q = parse(z.object({
     q: z.string().trim().max(200).default(''),
     t: z.enum(['', 'thread', 'post', 'profile_post', 'member']).default(''),

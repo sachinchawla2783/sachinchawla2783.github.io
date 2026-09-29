@@ -10,6 +10,7 @@ const settings = require('../lib/settings');
 const { allForums, descendants } = require('../lib/forums');
 
 const router = express.Router();
+router.use(require('../lib/limits').admin);
 
 /* Every permission the application knows about; roles can only be granted these. */
 const KNOWN_PERMISSIONS = [

@@ -9,6 +9,7 @@ const { notify } = require('../lib/notify');
 const { audit } = require('../lib/audit');
 
 const router = express.Router();
+router.use(require('../lib/limits').admin);
 
 /* Moderators may only act on members of strictly lower rank (a mod can't ban an admin). */
 async function loadTarget(id, actor) {

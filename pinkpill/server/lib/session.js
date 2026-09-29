@@ -5,7 +5,9 @@ const { randomToken, sha256, safeEqual } = require('./crypto');
 const { roles } = require('./permissions');
 const { forbidden } = require('./errors');
 
-const COOKIE = 'pp_session';
+// __Host- prefix (production): browsers only accept it when Secure, Path=/ and no Domain, so a
+// subdomain can't plant or overwrite the session cookie.
+const COOKIE = config.cookieSecure ? '__Host-pp_session' : 'pp_session';
 const DAY = 86400000;
 
 function cookieOptions(persistent) {

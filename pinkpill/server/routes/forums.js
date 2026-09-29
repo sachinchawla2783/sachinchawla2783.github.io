@@ -191,7 +191,7 @@ const threadSchema = z.object({
   watch: z.boolean().optional(),
 }).strict();
 
-router.post('/forums/:id/threads', limits.write, async (req, res) => {
+router.post('/forums/:id/threads', limits.thread, async (req, res) => {
   assertCan(req.user, 'thread.create');
   const id = slugParam(req.params.id);
   const d = parse(threadSchema, req.body);
@@ -455,7 +455,7 @@ const replySchema = z.object({
   rating: z.number().int().min(1).max(10).nullable().optional(),
 }).strict();
 
-router.post('/threads/:id/posts', limits.write, async (req, res) => {
+router.post('/threads/:id/posts', limits.reply, async (req, res) => {
   assertCan(req.user, 'post.reply');
   const me = req.user;
   const t = await T.loadThread(idParam(req.params.id), me);
