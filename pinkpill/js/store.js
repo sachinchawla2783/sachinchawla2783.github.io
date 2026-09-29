@@ -106,6 +106,7 @@
       ] },
       { id: 'c-community', title: 'Community', forums: [
         { id: 'f-intro', title: 'Introductions', desc: 'New here? Say hi and tell us about your goals.', icon: '👋' },
+        { id: 'f-advice', title: 'Situations & Dating Advice', desc: 'Get advice on your problems, life situations, dating and relationships. Be supportive.', icon: '💌', notice: 'Be kind and supportive. Keep other people anonymous: no names, photos or screenshots of them. If you\'re unsafe in a relationship, see the <a href="#/help/resources">support resources</a>.' },
         { id: 'f-success', title: 'Glow-Ups & Success Stories', desc: 'Before & afters, progress logs, wins.', icon: '🏆' },
         { id: 'f-wellbeing', title: 'Mental Health & Confidence', desc: 'Body image, self-esteem, support. Resources pinned.', icon: '🫶' },
         { id: 'f-feedback', title: 'Site Feedback & Bugs', desc: 'Suggestions and bug reports for PinkPill.', icon: '🛠️' },
@@ -133,6 +134,14 @@
       d.reps = d.reps || [];
       d.version = 2;
     }
+    if (d.version < 3) {
+      if (!d.forums.some((f) => f.id === 'f-advice')) {
+        const def = forumStructure().find((c) => c.id === 'c-community').forums.find((f) => f.id === 'f-advice');
+        d.forums.filter((f) => f.categoryId === 'c-community' && !f.parentId && f.order >= 1).forEach((f) => { f.order++; });
+        d.forums.push(Object.assign({ categoryId: 'c-community', order: 1, parentId: null }, def));
+      }
+      d.version = 3;
+    }
     return d;
   }
 
@@ -141,7 +150,7 @@
   function seed() {
     const now = Date.now();
     const db = {
-      version: 2,
+      version: 3,
       users: [], reps: [], categories: [], forums: [], threads: [], posts: [],
       profilePosts: [], conversations: [], alerts: [], reports: [],
       settings: { siteName: 'PinkPill', created: now },
@@ -201,6 +210,18 @@
     mkThread('f-announce', admin, 'New features: polls, trophies, bookmarks and dark mode', 'discussion', [
       [admin, 'We just shipped:\n\n• [b]Polls[/b] when creating threads\n• [b]Trophies[/b] and ranks\n• [b]Bookmarks[/b] and [b]watched threads[/b]\n• [b]Dark mode[/b] — toggle it in the footer or in your preferences\n\nReport bugs in [url=#/forums/f-feedback]Site Feedback[/url].'],
     ], { sticky: true, locked: true, tags: ['update'] });
+
+    mkThread('f-advice', u6, 'He only texts me late at night — am I overthinking?', 'question', [
+      [u6, 'Been talking to a guy for ~3 weeks. He\'s sweet in person, but he mostly messages after 11pm and rarely makes plans in advance. Am I overthinking it or is this a red flag?'],
+      [u5, 'Not overthinking. Consistency during the day and making real plans = interest. Ask him directly for a proper date this weekend and see how he responds.'],
+      [mod, 'Agree with Dahlia. You can say what you want kindly and clearly: "I\'d love to see you Saturday afternoon." His response will tell you everything.'],
+      [u1, 'And remember you\'re allowed to want more than a late-night text 💗'],
+    ], { tags: ['dating', 'relationships'] });
+
+    mkThread('f-advice', u3, 'Friend group keeps commenting on my weight loss — how do I handle it?', 'serious', [
+      [u3, 'I\'ve been lifting and eating better and lost some fat. Now every hangout turns into comments about my body, some nice, some weird. How do I set a boundary without being rude?'],
+      [u2, '"Thanks! I\'d rather not talk about my body though — how was your week?" Redirect, every time. People get it fast.'],
+    ], { tags: ['friendships', 'boundaries'] });
 
     mkThread('f-intro', u6, 'Hi from Norway 👋', null, [
       [u6, 'Hi everyone! I\'m Freya, 22. Mostly here to learn about skincare and figure out my colour season. Nice to meet you all!'],
@@ -355,7 +376,7 @@
       const raw = localStorage.getItem(KEY);
       db = raw ? JSON.parse(raw) : null;
     } catch (e) { db = null; }
-    if (!db || !db.version) { db = seed(); save(); } else if (db.version < 2) { migrate(db); save(); }
+    if (!db || !db.version) { db = seed(); save(); } else if (db.version < 3) { migrate(db); save(); }
     return db;
   }
 

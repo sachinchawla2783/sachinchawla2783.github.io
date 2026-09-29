@@ -144,6 +144,7 @@
       '<div class="head-actions">' + (u ? '<button class="btn" data-act="mark-forum-read" data-id="' + f.id + '">Mark read</button> ' : '') +
       (canPost ? '<a class="btn btn-primary" href="#/post-thread/' + f.id + '">Post thread</a>' : '<span class="muted small">Only staff can post here.</span>') + '</div></div>';
     if (subs.length) html += '<section class="block node-cat"><h2 class="block-head block-head--cat" data-collapse>Sub-forums</h2><div class="block-body">' + subs.map((c) => nodeRow(c, u)).join('') + '</div></section>';
+    if (f.notice) html += '<div class="notice">' + f.notice + '</div>';
     if (f.membersOnly) html += '<div class="notice">🔒 <b>Private forum.</b> Threads here are only visible to logged-in members. They don\'t appear to guests, in guest searches or in public activity feeds.</div>';
     if (f.rating) html += '<div class="notice"><b>Rating rules:</b> feedback is opt-in and must be constructive. Point out strengths, suggest actionable changes. No insults, no "it\'s over", no comments on things people can\'t change. Violations = ban.</div>';
     html += '<form class="filter-bar" data-form="thread-filter" data-forum="' + f.id + '">' +
@@ -779,6 +780,7 @@
         '<dt>How do I get a rating?</dt><dd>Post in <a href="#/forums/f-rating">Rating</a> (or its members-only Private Ratings sub-forum) or tick "Enable community ratings" when creating a thread. Each member can rate once (1–10) alongside constructive feedback.</dd>' +
         '<dt>What is rep?</dt><dd>Reputation is a trust score members give each other for helpful (or harmful) posts. See <a href="#/help/reputation">Reputation</a>.</dd>' +
         '<dt>What is the Private Ratings forum?</dt><dd>A sub-forum of <a href="#/forums/f-rating">Rating</a> that only logged-in members can see. Guests can\'t view, search or find its threads.</dd>' +
+        '<dt>Where can I ask for advice about my life or dating?</dt><dd>Post in <a href="#/forums/f-advice">Situations &amp; Dating Advice</a>. Share as much or as little as you like, and never post other people\'s personal details.</dd>' +
         '<dt>What are points and ranks?</dt><dd>You earn trophy points for milestones. Your rank is based on your message count. See <a href="#/help/trophies">Trophies</a>.</dd>' +
         '<dt>How do I ignore someone?</dt><dd>Open their profile → ⋯ → Ignore. Their posts are hidden and they can\'t message you or post on your profile.</dd>' +
         '<dt>Can I delete my account?</dt><dd>Yes: Account → Your data.</dd></dl>',
