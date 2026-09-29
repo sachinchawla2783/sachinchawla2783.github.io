@@ -214,7 +214,7 @@ decoded and re-stored through the upload pipeline. The browser no longer stores 
 theme, drafts and UI state stay in localStorage.
 
 ### 2.10 Deployment ($0, portable)
-Koyeb (Docker, free instance) + Neon (pooled PostgreSQL) + Cloudflare R2 (private uploads, presigned URLs)
+Render (free web service, native Node runtime) + Neon (pooled PostgreSQL) + Cloudflare R2 (private uploads, presigned URLs)
 + Resend (email) + Cloudflare DNS/Turnstile. Full procedure, variables and limits: **DEPLOYMENT.md**.
 Nothing is provider-locked: the database, storage (S3 API), mail and domain are all configuration.
 

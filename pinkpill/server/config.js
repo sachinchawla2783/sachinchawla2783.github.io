@@ -22,8 +22,9 @@ const config = {
   port: int(env.PORT, 3000),
   host: env.HOST || '0.0.0.0',
   // Canonical public URL. Every generated link (emails, redirects) uses this, never the Host header.
-  appUrl: (env.APP_URL || 'http://localhost:3000').replace(/\/+$/, ''),
-  // Redirect other hostnames (e.g. the apex domain, the *.koyeb.app URL) and plain HTTP to APP_URL.
+  // On Render, RENDER_EXTERNAL_URL (https://<service>.onrender.com) is used until APP_URL is set.
+  appUrl: (env.APP_URL || env.RENDER_EXTERNAL_URL || 'http://localhost:3000').replace(/\/+$/, ''),
+  // Redirect other hostnames (e.g. www/apex, the *.onrender.com URL) and plain HTTP to APP_URL.
   canonicalRedirect: bool(env.CANONICAL_REDIRECT, isProd),
   databaseUrl: isTest ? (env.DATABASE_URL_TEST || env.DATABASE_URL) : env.DATABASE_URL,
   db: {
@@ -87,7 +88,7 @@ if (isProd) {
   if (['console', 'file', 'memory'].includes(config.mail.transport)) problems.push(`MAIL_TRANSPORT "${config.mail.transport}" is for development only; use "resend".`);
   if (config.mail.transport === 'resend' && !config.mail.resendApiKey) problems.push('RESEND_API_KEY is required when MAIL_TRANSPORT=resend.');
   if (config.mail.transport === 'resend' && /localhost/.test(config.mail.from)) problems.push('MAIL_FROM must be an address on your verified sending domain.');
-  if (config.storage.driver === 'local' && !bool(env.ALLOW_LOCAL_STORAGE_IN_PRODUCTION, false)) problems.push('STORAGE_DRIVER=local is not durable on Koyeb; use "r2" (or set ALLOW_LOCAL_STORAGE_IN_PRODUCTION=true if you really have a persistent disk).');
+  if (config.storage.driver === 'local' && !bool(env.ALLOW_LOCAL_STORAGE_IN_PRODUCTION, false)) problems.push('STORAGE_DRIVER=local is not durable on Render (ephemeral filesystem); use "r2" (or set ALLOW_LOCAL_STORAGE_IN_PRODUCTION=true if you really have a persistent disk).');
   if (['r2', 's3'].includes(config.storage.driver)) {
     const s = config.storage.s3;
     if (!s.bucket || !s.endpoint || !s.accessKeyId || !s.secretAccessKey) problems.push('R2 storage needs R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET.');

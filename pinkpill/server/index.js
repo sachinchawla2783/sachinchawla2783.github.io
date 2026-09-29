@@ -19,7 +19,7 @@ async function start() {
   server.requestTimeout = 60000;
 }
 
-/* SIGTERM (Koyeb redeploy/scale-down) or SIGINT: stop accepting connections, let in-flight requests
+/* SIGTERM (Render redeploy/spin-down) or SIGINT: stop accepting connections, let in-flight requests
    finish (up to SHUTDOWN_TIMEOUT_MS), then close the database pool and exit. */
 async function shutdown(signal) {
   if (shuttingDown) return;

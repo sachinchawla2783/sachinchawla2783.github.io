@@ -1,6 +1,6 @@
 'use strict';
 /* Rate limits. The default store is in-process memory, which is correct for a single instance
-   (Koyeb free runs one). To run several instances, pass a shared store (e.g. rate-limit-redis) via
+   (the Render free plan runs one). To run several instances, pass a shared store (e.g. rate-limit-redis) via
    setStoreFactory() before the app is created; every limiter below will use it. */
 const rateLimit = require('express-rate-limit');
 const config = require('../config');

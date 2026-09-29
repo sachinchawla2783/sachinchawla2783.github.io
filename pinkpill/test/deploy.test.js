@@ -303,6 +303,7 @@ test('production mode refuses unsafe or incomplete configuration', async () => {
     { STORAGE_DRIVER: 'r2', R2_BUCKET: '' },
     { ALLOW_LOCAL_STORAGE_IN_PRODUCTION: 'false' },
     { TURNSTILE_SITE_KEY: 'only-the-site-key' },
+    { MAIL_FROM: '' },
   ];
   for (const env of cases) {
     const s = await startProd(env);
@@ -310,4 +311,17 @@ test('production mode refuses unsafe or incomplete configuration', async () => {
     assert.match(s.output(), /Invalid configuration/);
     s.child.kill();
   }
+});
+
+test('Render: listens on $PORT and uses RENDER_EXTERNAL_URL as the canonical URL until APP_URL is set', async () => {
+  const s = await startProd({ APP_URL: '', RENDER_EXTERNAL_URL: 'https://pinkpill-demo.onrender.com' });
+  try {
+    assert.ok(s.started, s.output());
+    assert.match(s.output(), /"appUrl":"https:\/\/pinkpill-demo\.onrender\.com"/);
+    const health = await raw(s.port, 'GET', '/health', { Host: '10.0.0.5' });
+    assert.equal(health.status, 200);
+    const r = await raw(s.port, 'GET', '/forums', { Host: 'other.example', 'X-Forwarded-Proto': 'https' });
+    assert.equal(r.status, 301);
+    assert.equal(r.headers.location, 'https://pinkpill-demo.onrender.com/forums');
+  } finally { s.child.kill('SIGTERM'); }
 });

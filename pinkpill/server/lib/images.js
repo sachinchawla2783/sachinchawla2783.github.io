@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const { HttpError } = require('./errors');
 const config = require('../config');
 
-// Koyeb free has 512 MB RAM: no libvips cache, one thread, and a cap on decoded pixels
+// Render's free instance has 512 MB RAM: no libvips cache, one thread, and a cap on decoded pixels
 // (24 MP ≈ 96 MB as RGBA), plus a queue so only IMAGE_CONCURRENCY images decode at once.
 sharp.cache(false);
 sharp.concurrency(1);

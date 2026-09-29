@@ -1,0 +1,49 @@
+# Render Blueprint for PinkPill (https://render.com/docs/blueprint-spec).
+# Creates ONE free web service. It deliberately creates NO Render Postgres and NO disk:
+# the database is Neon and uploads go to Cloudflare R2 (see pinkpill/DEPLOYMENT.md).
+# Every "sync: false" value is entered by you in the Render dashboard; none are stored in Git.
+services:
+  - type: web
+    name: pinkpill
+    runtime: node
+    plan: free
+    rootDir: pinkpill
+    buildCommand: npm ci --omit=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      # Neon pooled connection string (host contains -pooler).
+      - key: DATABASE_URL
+        sync: false
+      # https://YOURDOMAIN once the custom domain works; until then leave it unset
+      # (the app falls back to Render's RENDER_EXTERNAL_URL).
+      - key: APP_URL
+        sync: false
+      - key: MAIL_TRANSPORT
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: STORAGE_DRIVER
+        value: r2
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: TURNSTILE_SITE_KEY
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      # Temporary: remove after claiming the first administrator.
+      - key: ADMIN_CLAIM_TOKEN
+        sync: false

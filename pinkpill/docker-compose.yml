@@ -1,5 +1,5 @@
 # Self-hosted PinkPill: app + PostgreSQL on one machine (e.g. an always-free cloud VM).
-# Alternative to Koyeb/Neon/R2 (see DEPLOYMENT.md): everything on one VM with persistent disks.
+# Alternative to Render/Neon/R2 (see DEPLOYMENT.md): everything on one VM with persistent disks.
 # 1. cp .env.example .env and set APP_URL, POSTGRES_PASSWORD, RESEND_API_KEY, MAIL_FROM
 # 2. docker compose up -d
 # 3. docker compose exec app node server/scripts/create-admin.js
@@ -27,6 +27,7 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
+      PORT: "8000"
       DATABASE_URL: postgres://pinkpill:${POSTGRES_PASSWORD}@db:5432/pinkpill
       STORAGE_DRIVER: local
       ALLOW_LOCAL_STORAGE_IN_PRODUCTION: "true"   # the uploads volume below is persistent

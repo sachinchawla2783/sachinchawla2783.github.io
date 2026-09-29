@@ -1,5 +1,5 @@
 'use strict';
-/* Structured logging. One JSON object per line in production (easy to search in Koyeb's log view),
+/* Structured logging. One JSON object per line in production (easy to search in Render's log view),
  * readable lines in development, silent in tests unless LOG_LEVEL is set.
  * Never pass secrets, cookies, tokens, passwords, message contents or email bodies to these functions;
  * as a safety net, keys that look sensitive are redacted. */

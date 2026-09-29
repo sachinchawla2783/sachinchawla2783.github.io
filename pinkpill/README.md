@@ -78,9 +78,11 @@ If Playwright can't find Chromium, set `PLAYWRIGHT_CHROMIUM_PATH` to a Chromium 
 
 ## Environment variables and deployment
 
-Production deployment (Koyeb + Neon + Cloudflare R2 + Resend + Turnstile + your domain) is documented
-step by step in **[DEPLOYMENT.md](DEPLOYMENT.md)**, including every environment variable, DNS, backups,
-rollback, monitoring, free-tier limits and a smoke-test checklist. `.env.example` lists the local
+Production deployment (Render free web service + Neon + Cloudflare R2 + Resend + Turnstile + your
+domain) is documented step by step in **[DEPLOYMENT.md](DEPLOYMENT.md)**, including every environment
+variable, the custom-domain/DNS flow, backups, rollback, monitoring, free-tier limits, how to stay at $0
+and a smoke-test checklist. The Render Blueprint is `render.yaml` at the repository root. This is a
+hobby-grade free-tier setup (the service sleeps when idle), not enterprise infrastructure. `.env.example` lists the local
 development variables. The server refuses to start in production with unsafe or incomplete settings.
 
 Useful commands:
@@ -91,11 +93,11 @@ npm run db:status      # list applied / pending migrations
 npm run db:backup      # pg_dump to backups/ (see DEPLOYMENT.md §12)
 npm run db:restore -- <file.dump> --target <empty database URL>
 npm run create-admin   # create the first super administrator from your terminal
-npm start              # production server (binds 0.0.0.0:$PORT; /health and /ready)
+npm start              # production server (binds 0.0.0.0:$PORT, which Render provides; /health and /ready)
 ```
 
-`docker-compose.yml` remains as an alternative single-VM setup (bundled PostgreSQL and a persistent
-uploads volume).
+`Dockerfile` (optional container image, listens on `$PORT`) and `docker-compose.yml` (alternative
+self-hosted single-VM setup with bundled PostgreSQL) are not used by the Render deployment.
 
 ## Migrating data from the localStorage prototype
 
