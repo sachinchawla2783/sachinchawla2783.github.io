@@ -66,6 +66,7 @@
     app.innerHTML = '<div class="layout' + (out.sidebar ? ' layout--sidebar' : '') + '"><div class="layout-main">' + out.html + '</div>' + (out.sidebar ? '<aside class="layout-sidebar">' + out.sidebar + '</aside>' : '') + '</div>';
     document.title = out.title + ' | PinkPill';
     ui.bindEditors(app);
+    mountTurnstile(app);
     renderHeader(path);
     if (keepScroll) window.scrollTo(0, scroll);
     else if (path !== lastPath || !out.after) window.scrollTo(0, 0);
@@ -143,6 +144,42 @@
     try { localStorage.setItem('pinkpill.theme', t); } catch (e) { /* ignore */ }
     if (me()) { const r = await api.patch('/account/preferences', { theme: t }); PP.session.user = r.user; }
     applyTheme();
+  }
+
+  /* ---------- Cloudflare Turnstile (only when the server provides a site key) ---------- */
+
+  let turnstileLoading = null;
+  function loadTurnstile() {
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    if (!turnstileLoading) {
+      turnstileLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        s.async = true;
+        s.onload = () => resolve(window.turnstile);
+        s.onerror = () => { turnstileLoading = null; reject(new Error('Could not load the anti-spam check. Check your connection or disable blockers for this site.')); };
+        document.head.appendChild(s);
+      });
+    }
+    return turnstileLoading;
+  }
+  function mountTurnstile(root) {
+    const siteKey = PP.session.turnstile && PP.session.turnstile.siteKey;
+    const slots = root.querySelectorAll('[data-turnstile]');
+    if (!siteKey || !slots.length) return;
+    loadTurnstile().then((ts) => slots.forEach((el) => {
+      if (el.dataset.widgetId) return;
+      el.dataset.widgetId = ts.render(el, { sitekey: siteKey, theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'auto' });
+    })).catch((e) => toast(e.message, 'error'));
+  }
+  function turnstileToken(form) {
+    const el = form.querySelector('[data-turnstile]');
+    if (!el || !window.turnstile || !el.dataset.widgetId) return undefined;
+    return window.turnstile.getResponse(el.dataset.widgetId) || undefined;
+  }
+  function resetTurnstile(form) {
+    const el = form && form.querySelector('[data-turnstile]');
+    if (el && window.turnstile && el.dataset.widgetId) window.turnstile.reset(el.dataset.widgetId);
   }
 
   /* ---------- helpers ---------- */
@@ -404,14 +441,14 @@
 
   const forms = {
     async login(f, d) {
-      await api.post('/auth/login', { login: d.login, password: d.password, stay: !!d.stay });
+      await api.post('/auth/login', { login: d.login, password: d.password, stay: !!d.stay, turnstileToken: turnstileToken(f) });
       await afterLogin(f.dataset.return);
       toast('Welcome back, ' + me().username + '!');
     },
     async register(f, d) {
-      await api.post('/auth/register', { username: d.username, email: d.email, password: d.password, birthday: d.birthday, agree: !!d.agree, website: d.website || '' });
+      const r = await api.post('/auth/register', { username: d.username, email: d.email, password: d.password, birthday: d.birthday, agree: !!d.agree, website: d.website || '', turnstileToken: turnstileToken(f) });
       await afterLogin('#/forums/f-intro');
-      toast('Welcome to PinkPill, ' + me().username + '! 💗' + (me().mustVerifyEmail ? ' Check your email to verify your account.' : ''));
+      toast('Welcome to PinkPill, ' + me().username + '! 💗' + (r.emailSent === false ? ' We couldn\'t send your verification email just now; use "Resend email" in a few minutes.' : me().mustVerifyEmail ? ' Check your email to verify your account.' : ''));
     },
     async 'claim-admin'(f, d) {
       await api.post('/auth/claim-admin', { token: d.token });
@@ -419,7 +456,7 @@
       toast('You are now the super administrator. Remove ADMIN_CLAIM_TOKEN from your server settings.');
     },
     async 'reset-request'(f, d) {
-      const r = await api.post('/auth/password-reset/request', { email: d.email });
+      const r = await api.post('/auth/password-reset/request', { email: d.email, turnstileToken: turnstileToken(f) });
       f.innerHTML = '<h2 class="block-head">Check your email</h2><div class="block-body"><p>' + esc(r.message) + '</p></div>';
     },
     async 'reset-confirm'(f, d) {
@@ -554,7 +591,7 @@
     e.preventDefault();
     const btn = f.querySelector('button:not([type=button])');
     if (btn) btn.disabled = true;
-    try { await forms[f.dataset.form](f, formData(f)); } catch (err) { toast(err.message, 'error'); } finally { if (btn) btn.disabled = false; }
+    try { await forms[f.dataset.form](f, formData(f)); } catch (err) { toast(err.message, 'error'); resetTurnstile(f); } finally { if (btn) btn.disabled = false; }
   });
 
   document.addEventListener('change', (e) => {
@@ -595,7 +632,9 @@
 
   ui.bindUserTips();
   window.addEventListener('hashchange', () => { document.body.classList.remove('nav-open'); ui.closeModal(); render(); });
-  setInterval(async () => { await refreshCounts(); desktopNotify().catch(() => {}); }, 60 * 1000);
+  // Poll badge counts only while the tab is visible, so idle tabs don't keep the server and database awake.
+  setInterval(async () => { if (document.visibilityState !== 'visible' || !me()) return; await refreshCounts(); desktopNotify().catch(() => {}); }, 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && me()) refreshCounts(); });
   document.getElementById('year').textContent = new Date().getFullYear();
   (async () => {
     try { await api.loadSession(); } catch (e) { toast(e.message, 'error'); }

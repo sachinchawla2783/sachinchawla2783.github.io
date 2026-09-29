@@ -464,6 +464,7 @@
       '<label class="field"><span>Your name or email address</span><input name="login" autocomplete="username" required maxlength="254"></label>' +
       '<label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>' +
       '<label class="check"><input type="checkbox" name="stay" checked> Stay logged in</label>' +
+      (PP.session.turnstile && PP.session.turnstile.onLogin ? '<div data-turnstile></div>' : '') +
       '<div class="form-actions"><button class="btn btn-primary">Log in</button> <a href="#/lost-password" class="small">Forgot your password?</a></div>' +
       '<p class="small">Don\'t have an account? <a href="#/register">Register now</a></p></div></form></div>';
     return { title: 'Log in', html };
@@ -476,6 +477,7 @@
       '<label class="field"><span>Password</span><input name="password" type="password" required minlength="8" maxlength="200" autocomplete="new-password"></label>' +
       '<label class="field"><span>Date of birth</span><input name="birthday" type="date" required></label>' +
       '<label class="hp" aria-hidden="true">Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label>' +
+      (PP.session.turnstile && PP.session.turnstile.siteKey ? '<div data-turnstile></div>' : '') +
       '<label class="check"><input type="checkbox" name="agree" required> I agree to the <a href="#/help/terms">terms</a>, <a href="#/help/rules">rules</a> and <a href="#/help/privacy">privacy policy</a>.</label>' +
       '<div class="form-actions"><button class="btn btn-primary">Register</button></div>' +
       '<p class="small muted">PinkPill is an 18+ community. We\'ll email you a link to verify your address.</p></div></form></div>';
@@ -484,7 +486,7 @@
 
   function lostPassword() {
     return { title: 'Lost password', html: '<div class="auth-wrap"><form class="block form" data-form="reset-request"><h2 class="block-head">Lost password</h2><div class="block-body"><p>Enter your email address and we\'ll send you a link to reset your password.</p>' +
-      '<label class="field"><span>Email</span><input name="email" type="email" required autocomplete="email"></label><div class="form-actions"><button class="btn btn-primary">Send reset link</button></div></div></form></div>' };
+      '<label class="field"><span>Email</span><input name="email" type="email" required autocomplete="email"></label>' + (PP.session.turnstile && PP.session.turnstile.siteKey ? '<div data-turnstile></div>' : '') + '<div class="form-actions"><button class="btn btn-primary">Send reset link</button></div></div></form></div>' };
   }
 
   function resetPassword(_, q) {

@@ -225,3 +225,89 @@ test('graceful shutdown: SIGTERM finishes cleanly with exit code 0', async () =>
   assert.equal(code, 0);
   assert.match(output, /server\.shutdown_complete/);
 });
+
+/* http.request (unlike fetch) lets us set the Host header, as a reverse proxy would. */
+function raw(port, method, pathname, headers, body) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, method, path: pathname, headers }, (res) => {
+      let data = '';
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
+    });
+    req.on('error', reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+/* Starts the real server in production mode and returns { port, child, output() }. */
+async function startProd(extraEnv) {
+  const port = 4000 + Math.floor(Math.random() * 900);
+  const env = Object.assign({}, process.env, {
+    NODE_ENV: 'production', PORT: String(port), APP_URL: 'https://pinkpill.test', DATABASE_URL: process.env.DATABASE_URL_TEST,
+    MAIL_TRANSPORT: 'resend', RESEND_API_KEY: 're_dummy', RESEND_API_URL: 'http://127.0.0.1:1/emails', MAIL_FROM: 'PinkPill <no-reply@pinkpill.test>',
+    STORAGE_DRIVER: 'local', ALLOW_LOCAL_STORAGE_IN_PRODUCTION: 'true', MIGRATE_ON_START: 'false', TRUST_PROXY: 'loopback', LOG_LEVEL: 'info', RATE_LIMITS: 'false',
+  }, extraEnv || {});
+  const child = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'index.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '';
+  child.stdout.on('data', (d) => { out += d; });
+  child.stderr.on('data', (d) => { out += d; });
+  const started = await new Promise((resolve) => {
+    const t = setTimeout(() => resolve(false), 15000);
+    const check = () => { if (/server\.listening/.test(out)) { clearTimeout(t); resolve(true); } };
+    child.stdout.on('data', check);
+    child.on('exit', () => { clearTimeout(t); resolve(false); });
+  });
+  return { port, child, started, output: () => out };
+}
+
+test('production mode: __Host- session cookie is Secure, HttpOnly, SameSite=Lax, host-only; JSON logs', async () => {
+  const s = await startProd();
+  try {
+    assert.ok(s.started, s.output());
+    const hdr = { Host: 'pinkpill.test', 'X-Forwarded-Proto': 'https', 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' };
+    const r = await raw(s.port, 'POST', '/api/auth/register', hdr, JSON.stringify({ username: 'produser', email: 'prod@example.com', password: 'a long password', birthday: '1990-01-01', agree: true }));
+    assert.equal(r.status, 201, r.body);
+    const cookie = r.headers['set-cookie'][0];
+    assert.match(cookie, /^__Host-pp_session=/);
+    assert.match(cookie, /; HttpOnly/i);
+    assert.match(cookie, /; Secure/i);
+    assert.match(cookie, /SameSite=Lax/i);
+    assert.match(cookie, /Path=\//);
+    assert.ok(!/Domain=/i.test(cookie), 'host-only cookie');
+    assert.match(JSON.parse(r.body).csrfToken, /^[\w-]{20,}$/);
+    // Resend is unreachable in this test: signup still succeeds, and the failure is logged without the token.
+    const rs = await raw(s.port, 'GET', '/', { Host: 'pinkpill.test', 'X-Forwarded-Proto': 'https' });
+    assert.match(rs.headers['strict-transport-security'], /max-age=31536000/);
+    const redirect = await raw(s.port, 'GET', '/whatever', { Host: 'www.pinkpill.test', 'X-Forwarded-Proto': 'https' });
+    assert.equal(redirect.status, 301);
+    assert.equal(redirect.headers.location, 'https://pinkpill.test/whatever');
+    const health = await raw(s.port, 'GET', '/health', { Host: '10.1.2.3:8000' });
+    assert.equal(health.status, 200);
+    await new Promise((r2) => setTimeout(r2, 300));
+    const logs = s.output();
+    assert.match(logs, /^\{"ts":/m, 'JSON log lines');
+    assert.match(logs, /"event":"mail.failed"/);
+    assert.ok(!/token=/.test(logs), 'no tokens in logs');
+    assert.ok(!logs.includes('prod@example.com'), 'emails masked');
+    assert.ok(!logs.includes('a long password'));
+  } finally { s.child.kill('SIGTERM'); }
+});
+
+test('production mode refuses unsafe or incomplete configuration', async () => {
+  const cases = [
+    { APP_URL: 'http://pinkpill.test' },
+    { RESEND_API_KEY: '' },
+    { MAIL_TRANSPORT: 'file' },
+    { COOKIE_SECURE: 'false' },
+    { STORAGE_DRIVER: 'r2', R2_BUCKET: '' },
+    { ALLOW_LOCAL_STORAGE_IN_PRODUCTION: 'false' },
+    { TURNSTILE_SITE_KEY: 'only-the-site-key' },
+  ];
+  for (const env of cases) {
+    const s = await startProd(env);
+    assert.equal(s.started, false, 'should refuse: ' + JSON.stringify(env));
+    assert.match(s.output(), /Invalid configuration/);
+    s.child.kill();
+  }
+});

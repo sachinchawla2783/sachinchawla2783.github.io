@@ -59,6 +59,7 @@
     PP.session.csrf = r.csrfToken;
     PP.session.loaded = true;
     PP.session.requireEmailVerification = r.requireEmailVerification;
+    PP.session.turnstile = r.turnstile || { siteKey: null, onLogin: false };
     if (r.user) PP.users[r.user.id] = r.user;
     return r.user;
   }
