@@ -18,7 +18,26 @@
     const lp = store.lastPost(t.id);
     return !!lp && lp.authorId !== u.id && lp.created > readCutoff(u, t.id);
   }
-  function forumUnread(f, u) { return !!u && store.threadsIn(f.id).some((t) => threadUnread(t, u)); }
+  function forumUnread(f, u) { return !!u && store.forumTree(f.id).some((id) => store.threadsIn(id).some((t) => threadUnread(t, u))); }
+  const visibleThreads = (u) => db().threads.filter((t) => store.canViewThread(t, u));
+  const crumbsFor = (f) => [['#/', (db().categories.find((c) => c.id === store.forumPath(f)[0].categoryId) || {}).title || 'Forums']].concat(store.forumPath(f).map((x) => ['#/forums/' + x.id, x.title]));
+
+  /* One forum row, as on the forum index and in a parent forum's sub-forum list. */
+  function nodeRow(f, u) {
+    const s = store.forumStats(f.id, u);
+    const lp = s.last, lt = lp && store.thread(lp.threadId), lu = lp && store.user(lp.authorId);
+    const subs = store.childForums(f.id).filter((c) => store.canViewForum(c, u));
+    return '<div class="node' + (forumUnread(f, u) ? ' node--unread' : '') + '"><div class="node-icon">' + f.icon + '</div>' +
+      '<div class="node-main"><a class="node-title" href="#/forums/' + f.id + '">' + esc(f.title) + '</a>' + (f.membersOnly ? ' <span class="badge" title="Only visible to logged-in members">🔒 Members only</span>' : '') + '<div class="node-desc">' + esc(f.desc) + '</div>' +
+      (subs.length ? '<div class="node-subs">' + subs.map((c) => '<a href="#/forums/' + c.id + '" class="' + (forumUnread(c, u) ? 'unread' : '') + '">' + c.icon + ' ' + esc(c.title) + '</a>').join('') + '</div>' : '') + '</div>' +
+      '<dl class="node-stats"><div><dt>Threads</dt><dd>' + num(s.threads) + '</dd></div><div><dt>Messages</dt><dd>' + num(s.messages) + '</dd></div></dl>' +
+      '<div class="node-last">' + (lp ? avatar(lu, 's') + '<div><a href="#/threads/' + lt.id + '/post-' + lp.id + '" class="node-last-title">' + prefix(lt.prefix) + esc(lt.title) + '</a><div class="small muted">' + time(lp.created) + ' · ' + username(lu) + '</div></div>' : '<span class="muted">None</span>') + '</div></div>';
+  }
+
+  function repBadge(total) {
+    const lv = store.repLevel(total);
+    return '<span class="rep ' + lv.cls + '" title="Reputation: ' + lv.label + '">' + (total > 0 ? '+' : '') + num(total) + '</span>';
+  }
 
   /* ---------- sidebar widgets ---------- */
 
@@ -32,7 +51,7 @@
   }
 
   function widgetLatestPosts(n) {
-    const ts = db().threads.map((t) => ({ t, lp: store.lastPost(t.id) })).filter((x) => x.lp).sort((a, b) => b.lp.created - a.lp.created).slice(0, n || 6);
+    const ts = visibleThreads(me()).map((t) => ({ t, lp: store.lastPost(t.id) })).filter((x) => x.lp).sort((a, b) => b.lp.created - a.lp.created).slice(0, n || 6);
     return '<section class="block"><h3 class="block-head"><a href="#/whats-new">Latest posts</a></h3><div class="block-body">' +
       ts.map(({ t, lp }) => '<div class="mini-post">' + avatar(store.user(lp.authorId), 's') + '<div><a href="#/threads/' + t.id + '/post-' + lp.id + '" class="mini-title">' + prefix(t.prefix) + esc(t.title) + '</a><div class="small muted">Latest: ' + esc((store.user(lp.authorId) || {}).username || '?') + ' · ' + time(lp.created) + '</div><div class="small muted">' + esc(store.forum(t.forumId).title) + '</div></div></div>').join('') + '</div></section>';
   }
@@ -41,8 +60,8 @@
     const d = db();
     const newest = d.users.slice().sort((a, b) => b.joined - a.joined)[0];
     return '<section class="block"><h3 class="block-head">Forum statistics</h3><div class="block-body"><dl class="pairs">' +
-      '<div><dt>Threads</dt><dd>' + num(d.threads.length) + '</dd></div>' +
-      '<div><dt>Messages</dt><dd>' + num(d.posts.filter((p) => !p.deleted).length) + '</dd></div>' +
+      '<div><dt>Threads</dt><dd>' + num(visibleThreads(me()).length) + '</dd></div>' +
+      '<div><dt>Messages</dt><dd>' + num(d.posts.filter((p) => !p.deleted && store.canViewPost(p, me())).length) + '</dd></div>' +
       '<div><dt>Members</dt><dd>' + num(d.users.length) + '</dd></div>' +
       '<div><dt>Latest member</dt><dd>' + username(newest) + '</dd></div></dl></div></section>';
   }
@@ -65,17 +84,10 @@
       '<div class="head-actions">' + (u ? '<button class="btn" data-act="mark-all-read">Mark forums read</button> ' : '') + '<a class="btn btn-primary" href="#/post-thread">Post thread…</a></div></div>';
     if (!u) html += '<div class="notice notice--welcome"><b>Welcome to PinkPill! 💗</b> Join to post, react, follow members and send messages. <a class="btn btn-primary btn-sm" href="#/register">Register</a> <a class="btn btn-sm" href="#/login">Log in</a></div>';
     cats.forEach((c) => {
-      const forums = db().forums.filter((f) => f.categoryId === c.id).sort((a, b) => a.order - b.order);
+      const forums = db().forums.filter((f) => f.categoryId === c.id && !f.parentId && store.canViewForum(f, u)).sort((a, b) => a.order - b.order);
+      if (!forums.length) return;
       html += '<section class="block node-cat"><h2 class="block-head block-head--cat" data-collapse>' + esc(c.title) + '</h2><div class="block-body">';
-      forums.forEach((f) => {
-        const s = store.forumStats(f.id);
-        const lp = s.last, lt = lp && store.thread(lp.threadId), lu = lp && store.user(lp.authorId);
-        const unread = forumUnread(f, u);
-        html += '<div class="node' + (unread ? ' node--unread' : '') + '"><div class="node-icon">' + f.icon + '</div>' +
-          '<div class="node-main"><a class="node-title" href="#/forums/' + f.id + '">' + esc(f.title) + '</a><div class="node-desc">' + esc(f.desc) + '</div></div>' +
-          '<dl class="node-stats"><div><dt>Threads</dt><dd>' + num(s.threads) + '</dd></div><div><dt>Messages</dt><dd>' + num(s.messages) + '</dd></div></dl>' +
-          '<div class="node-last">' + (lp ? avatar(lu, 's') + '<div><a href="#/threads/' + lt.id + '/post-' + lp.id + '" class="node-last-title">' + prefix(lt.prefix) + esc(lt.title) + '</a><div class="small muted">' + time(lp.created) + ' · ' + username(lu) + '</div></div>' : '<span class="muted">None</span>') + '</div></div>';
-      });
+      html += forums.map((f) => nodeRow(f, u)).join('');
       html += '</div></section>';
     });
     return { title: 'Forums', html, sidebar: defaultSidebar(), activity: 'Viewing forum index' };
@@ -113,8 +125,9 @@
     const f = store.forum(id);
     if (!f) return notFound('forum');
     const u = me();
+    if (!store.canViewForum(f, u)) return loginRequired('This forum is only visible to logged-in members.');
     const pg = Number(page) || 1;
-    const cat = db().categories.find((c) => c.id === f.categoryId);
+    const subs = store.childForums(f.id).filter((c) => store.canViewForum(c, u));
     const pfx = q.get('prefix') || '', order = q.get('order') || 'last', dir = q.get('dir') || 'desc', starter = q.get('starter') || '';
     let list = store.threadsIn(f.id).filter((t) => !u || !u.ignoring.includes(t.authorId) || q.get('ignored'));
     if (pfx) list = list.filter((t) => t.prefix === pfx);
@@ -126,11 +139,13 @@
     const canPost = !f.staffOnly || store.isStaff(u);
     const qs = (extra) => { const p = new URLSearchParams(q); Object.entries(extra).forEach(([k, v]) => (v ? p.set(k, v) : p.delete(k))); const s = p.toString(); return s ? '?' + s : ''; };
 
-    let html = breadcrumb([['#/', cat.title], ['#/forums/' + f.id, f.title]]) +
+    let html = breadcrumb(crumbsFor(f)) +
       '<div class="page-head"><h1>' + f.icon + ' ' + esc(f.title) + '</h1><p class="muted">' + esc(f.desc) + '</p>' +
       '<div class="head-actions">' + (u ? '<button class="btn" data-act="mark-forum-read" data-id="' + f.id + '">Mark read</button> ' : '') +
       (canPost ? '<a class="btn btn-primary" href="#/post-thread/' + f.id + '">Post thread</a>' : '<span class="muted small">Only staff can post here.</span>') + '</div></div>';
-    if (f.rating) html += '<div class="notice"><b>Rate Me rules:</b> feedback is opt-in and must be constructive. Point out strengths, suggest actionable changes. No insults, no "it\'s over", no comments on things people can\'t change. Violations = ban.</div>';
+    if (subs.length) html += '<section class="block node-cat"><h2 class="block-head block-head--cat" data-collapse>Sub-forums</h2><div class="block-body">' + subs.map((c) => nodeRow(c, u)).join('') + '</div></section>';
+    if (f.membersOnly) html += '<div class="notice">🔒 <b>Private forum.</b> Threads here are only visible to logged-in members. They don\'t appear to guests, in guest searches or in public activity feeds.</div>';
+    if (f.rating) html += '<div class="notice"><b>Rating rules:</b> feedback is opt-in and must be constructive. Point out strengths, suggest actionable changes. No insults, no "it\'s over", no comments on things people can\'t change. Violations = ban.</div>';
     html += '<form class="filter-bar" data-form="thread-filter" data-forum="' + f.id + '">' +
       '<label>Prefix <select name="prefix"><option value="">Any</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '"' + (p.id === pfx ? ' selected' : '') + '>' + esc(p.label) + '</option>').join('') + '</select></label>' +
       '<label>Started by <input name="starter" value="' + esc(starter) + '" placeholder="Member" size="10"></label>' +
@@ -173,7 +188,7 @@
     const s = store.userStats(a);
     return '<div class="message-user">' + avatar(a, 'l') + (store.isOnline(a) ? '<span class="online-badge" title="Online now"></span>' : '') +
       '<div class="message-username">' + username(a) + '</div><div class="message-title">' + userTitle(a) + '</div>' + ui.roleBanner(a) +
-      '<dl class="pairs pairs--compact"><div><dt>Joined</dt><dd>' + fullDate(a.joined) + '</dd></div><div><dt>Messages</dt><dd>' + num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + num(s.score) + '</dd></div><div><dt>Points</dt><dd>' + s.points + '</dd></div>' + (a.location ? '<div><dt>Location</dt><dd>' + esc(a.location) + '</dd></div>' : '') + '</dl></div>';
+      '<dl class="pairs pairs--compact"><div><dt>Joined</dt><dd>' + fullDate(a.joined) + '</dd></div><div><dt>Messages</dt><dd>' + num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + num(s.score) + '</dd></div><div><dt>Rep</dt><dd>' + repBadge(s.rep) + '</dd></div><div><dt>Points</dt><dd>' + s.points + '</dd></div>' + (a.location ? '<div><dt>Location</dt><dd>' + esc(a.location) + '</dd></div>' : '') + '</dl></div>';
   }
 
   function postHtml(p, th, n, u) {
@@ -192,8 +207,11 @@
   function postBody(p, th, n, u, a, own, staff) {
     const bookmarked = u && u.bookmarks.includes(p.id);
     const mq = (PP.multiQuote || []).includes(p.id);
+    const reps = store.repsForPost(p.id);
+    const repTotal = reps.reduce((x, r) => x + r.value, 0);
+    const repped = u && reps.some((r) => r.fromId === u.id);
     return authorPanel(a) + '<div class="message-main"><header class="message-attribution"><a href="#/threads/' + th.id + '/post-' + p.id + '" class="muted small">' + time(p.created) + '</a>' +
-      '<span class="message-attribution-opposite">' + (p.rating != null ? '<span class="rating-badge">⭐ Rated ' + p.rating + '/10</span>' : '') +
+      '<span class="message-attribution-opposite">' + (reps.length ? '<button class="rep-post ' + (repTotal < 0 ? 'neg' : '') + '" data-act="rep-list" data-id="' + p.id + '" title="Reputation given for this post">⚖ ' + (repTotal > 0 ? '+' : '') + repTotal + ' rep</button>' : '') + (p.rating != null ? '<span class="rating-badge">⭐ Rated ' + p.rating + '/10</span>' : '') +
       '<button class="icon-btn" data-act="share" data-id="' + p.id + '" data-thread="' + th.id + '" title="Share">🔗</button>' +
       (u ? '<button class="icon-btn' + (bookmarked ? ' on' : '') + '" data-act="bookmark" data-id="' + p.id + '" title="Bookmark">' + (bookmarked ? '🔖' : '📑') + '</button>' : '') +
       '<a href="#/threads/' + th.id + '/post-' + p.id + '" class="muted small">#' + n + '</a></span></header>' +
@@ -205,7 +223,7 @@
       ((own || staff) ? '<button class="action" data-act="edit-post" data-id="' + p.id + '">Edit</button><button class="action" data-act="delete-post" data-id="' + p.id + '">Delete</button>' : '') +
       (staff && a && a.id !== u.id ? '<button class="action" data-act="warn" data-id="' + a.id + '">Warn</button>' : '') +
       '</div><div class="message-actions">' +
-      (u && !own ? reactButton(p, 'post') : '') +
+      (u && !own ? (repped ? '<span class="action action--active" title="You already gave rep for this post">⚖ Repped</span>' : '<button class="action" data-act="rep" data-id="' + p.id + '" title="Give reputation">⚖ Rep</button>') + reactButton(p, 'post') : '') +
       (u && (!th.locked || staff) ? '<button class="action" data-act="mq" data-id="' + p.id + '">' + (mq ? '− Quote' : '+ Quote') + '</button><button class="action" data-act="quote" data-id="' + p.id + '">Reply</button>' : '') +
       '</div></footer>' + reactionSummary(p, 'post') + '</div>';
   }
@@ -248,7 +266,8 @@
     if (!th) return notFound('thread');
     const u = me();
     const staff = store.isStaff(u);
-    const f = store.forum(th.forumId), cat = db().categories.find((c) => c.id === f.categoryId);
+    if (!store.canViewThread(th, u)) return loginRequired('This thread is in a members-only forum.');
+    const f = store.forum(th.forumId);
     let all = store.postsIn(th.id);
     if (!staff) all = all.filter((p) => !p.deleted);
     let pg = Number(page) || 1;
@@ -272,7 +291,7 @@
     const author = store.user(th.authorId);
     const watching = u && u.watched.includes(th.id);
     const own = u && u.id === th.authorId;
-    let html = breadcrumb([['#/', cat.title], ['#/forums/' + f.id, f.title], ['#/threads/' + th.id, th.title]]) +
+    let html = breadcrumb(crumbsFor(f).concat([['#/threads/' + th.id, th.title]])) +
       '<div class="page-head"><h1>' + prefix(th.prefix) + esc(th.title) + '</h1>' +
       '<div class="thread-info muted small">' + username(author) + ' · ' + time(th.created) + (th.locked ? ' · 🔒 Locked' : '') + (th.sticky ? ' · 📌 Sticky' : '') + '</div>' +
       (th.tags.length ? '<div class="tags">' + th.tags.map((t) => '<a class="tag" href="#/tags/' + encodeURIComponent(t) + '">' + esc(t) + '</a>').join('') + '</div>' : '') +
@@ -300,7 +319,7 @@
         '<button class="btn btn-primary">↩ Post reply</button> <button type="button" class="btn" data-act="mq-insert" data-thread="' + th.id + '"' + ((PP.multiQuote || []).length ? '' : ' hidden') + '>Insert quotes (' + (PP.multiQuote || []).length + ')</button>' +
         '<span class="small muted">Ctrl+Enter to post</span></div></form></div></section>';
     }
-    const similar = db().threads.filter((t) => t.id !== th.id && (t.forumId === th.forumId || t.tags.some((x) => th.tags.includes(x)))).slice(0, 5);
+    const similar = visibleThreads(u).filter((t) => t.id !== th.id && (t.forumId === th.forumId || t.tags.some((x) => th.tags.includes(x)))).slice(0, 5);
     const sidebar = '<section class="block"><h3 class="block-head">Thread information</h3><div class="block-body"><dl class="pairs"><div><dt>Started by</dt><dd>' + username(author) + '</dd></div><div><dt>Replies</dt><dd>' + (all.length - 1) + '</dd></div><div><dt>Views</dt><dd>' + num(th.views) + '</dd></div><div><dt>Watchers</dt><dd>' + th.watchers.length + '</dd></div><div><dt>Participants</dt><dd>' + new Set(all.map((p) => p.authorId)).size + '</dd></div></dl></div></section>' +
       (similar.length ? '<section class="block"><h3 class="block-head">Similar threads</h3><div class="block-body">' + similar.map((t) => '<div class="mini-post"><div><a class="mini-title" href="#/threads/' + t.id + '">' + prefix(t.prefix) + esc(t.title) + '</a><div class="small muted">' + esc(store.forum(t.forumId).title) + '</div></div></div>').join('') + '</div></section>' : '') +
       widgetOnline();
@@ -322,16 +341,21 @@
     if (!u) return loginRequired();
     if (!forumId) {
       const html = '<div class="page-head"><h1>Post thread</h1><p class="muted">Choose a forum to post in:</p></div><section class="block"><div class="block-body">' +
-        db().categories.map((c) => '<h3>' + esc(c.title) + '</h3><div class="forum-pick">' + db().forums.filter((f) => f.categoryId === c.id && (!f.staffOnly || store.isStaff(u))).map((f) => '<a class="btn" href="#/post-thread/' + f.id + '">' + f.icon + ' ' + esc(f.title) + '</a>').join('') + '</div>').join('') + '</div></section>';
+        db().categories.slice().sort((a, b) => a.order - b.order).map((c) => {
+          const list = [];
+          const add = (f, depth) => { if (!store.canViewForum(f, u)) return; if (!f.staffOnly || store.isStaff(u)) list.push('<a class="btn' + (depth ? ' btn-sub' : '') + '" href="#/post-thread/' + f.id + '">' + (depth ? '↳ ' : '') + f.icon + ' ' + esc(f.title) + '</a>'); store.childForums(f.id).forEach((ch) => add(ch, depth + 1)); };
+          db().forums.filter((f) => f.categoryId === c.id && !f.parentId).sort((a, b) => a.order - b.order).forEach((f) => add(f, 0));
+          return list.length ? '<h3>' + esc(c.title) + '</h3><div class="forum-pick">' + list.join('') + '</div>' : '';
+        }).join('') + '</div></section>';
       return { title: 'Post thread', html };
     }
     const f = store.forum(forumId);
     if (!f) return notFound('forum');
     if (f.staffOnly && !store.isStaff(u)) return errorView('Only staff can post in this forum.');
-    const cat = db().categories.find((c) => c.id === f.categoryId);
-    const html = breadcrumb([['#/', cat.title], ['#/forums/' + f.id, f.title], ['', 'Post thread']]) +
+    const html = breadcrumb(crumbsFor(f).concat([['', 'Post thread']])) +
       '<div class="page-head"><h1>Post thread in ' + esc(f.title) + '</h1></div>' +
-      (f.rating ? '<div class="notice">Posting in <b>Rate Me &amp; Feedback</b>: you\'re opting in to ratings and feedback. Only post photos of yourself, and only if you\'re 18+. You can delete your thread at any time.</div>' : '') +
+      (f.membersOnly ? '<div class="notice">🔒 This is a <b>members-only</b> forum: your thread will be hidden from guests.</div>' : '') +
+      (f.rating ? '<div class="notice">Posting in <b>' + esc(f.title) + '</b>: you\'re opting in to ratings and feedback. Only post photos of yourself, and only if you\'re 18+. You can delete your thread at any time.</div>' : '') +
       '<form class="block form" data-form="post-thread" data-forum="' + f.id + '" data-draft="thread-' + f.id + '"><div class="block-body">' +
       '<div class="row"><select name="prefix" class="prefix-select"><option value="">(No prefix)</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '"' + (f.rating && p.id === 'rateme' ? ' selected' : '') + '>' + esc(p.label) + '</option>').join('') + '</select>' +
       '<input name="title" class="grow input-title" placeholder="Thread title" maxlength="150" required></div>' +
@@ -366,6 +390,7 @@
       body = '<div class="grid-2">' +
         '<section class="block"><h3 class="block-head">Most messages</h3><div class="block-body">' + memberList(top((u) => stats.get(u.id).posts), (u) => stats.get(u.id).posts, 'Messages') + '</div></section>' +
         '<section class="block"><h3 class="block-head">Highest reaction score</h3><div class="block-body">' + memberList(top((u) => stats.get(u.id).score), (u) => stats.get(u.id).score, 'Reactions') + '</div></section>' +
+        '<section class="block"><h3 class="block-head">Highest reputation</h3><div class="block-body">' + memberList(top((u) => stats.get(u.id).rep), (u) => stats.get(u.id).rep, 'Rep') + '</div></section>' +
         '<section class="block"><h3 class="block-head">Most points</h3><div class="block-body">' + memberList(top((u) => stats.get(u.id).points), (u) => stats.get(u.id).points, 'Points') + '</div></section>' +
         '<section class="block"><h3 class="block-head">Newest members</h3><div class="block-body">' + memberList(all.slice().sort((a, b) => b.joined - a.joined).slice(0, 8), null) + '</div></section>' +
         '</div>';
@@ -374,9 +399,9 @@
       if (bdays.length) body += '<section class="block"><h3 class="block-head">🎂 Today\'s birthdays</h3><div class="block-body">' + memberList(bdays) + '</div></section>';
     } else if (tab === 'list') {
       const sort = q.get('sort') || 'joined';
-      const key = { joined: (u) => u.joined, messages: (u) => stats.get(u.id).posts, reactions: (u) => stats.get(u.id).score, name: (u) => u.username.toLowerCase() }[sort];
+      const key = { joined: (u) => u.joined, messages: (u) => stats.get(u.id).posts, reactions: (u) => stats.get(u.id).score, rep: (u) => stats.get(u.id).rep, name: (u) => u.username.toLowerCase() }[sort];
       const list = all.slice().sort((a, b) => (sort === 'name' ? (key(a) < key(b) ? -1 : 1) : key(b) - key(a)));
-      body = '<div class="filter-bar">Sort by: ' + [['joined', 'Newest'], ['messages', 'Messages'], ['reactions', 'Reactions'], ['name', 'Name']].map(([k, l]) => '<a class="btn btn-sm' + (k === sort ? ' btn-primary' : '') + '" href="#/members/list?sort=' + k + '">' + l + '</a>').join(' ') + '</div>' +
+      body = '<div class="filter-bar">Sort by: ' + [['joined', 'Newest'], ['messages', 'Messages'], ['reactions', 'Reactions'], ['rep', 'Reputation'], ['name', 'Name']].map(([k, l]) => '<a class="btn btn-sm' + (k === sort ? ' btn-primary' : '') + '" href="#/members/list?sort=' + k + '">' + l + '</a>').join(' ') + '</div>' +
         '<section class="block"><div class="block-body">' + memberList(list, (u) => stats.get(u.id).posts, 'Messages') + '</div></section>';
     } else if (tab === 'staff') {
       body = '<section class="block"><h3 class="block-head">Administrators</h3><div class="block-body">' + memberList(all.filter((u) => u.role === 'admin')) + '</div></section>' +
@@ -401,7 +426,7 @@
 
   function activityItems(filterFn, limit) {
     const items = [];
-    db().threads.forEach((t) => {
+    visibleThreads(me()).forEach((t) => {
       store.postsIn(t.id).forEach((p, i) => {
         if (p.deleted || !filterFn(p)) return;
         items.push({ created: p.created, html: avatar(store.user(p.authorId), 's') + '<div class="grow"><div>' + username(store.user(p.authorId)) + (i === 0 ? ' started the thread ' : ' replied to the thread ') + '<a href="#/threads/' + t.id + '/post-' + p.id + '">' + prefix(t.prefix) + esc(t.title) + '</a>.</div><div class="activity-snippet">' + esc(snippet(p.content, 220)) + '</div><div class="small muted">' + time(p.created) + ' · ' + esc(store.forum(t.forumId).title) + '</div></div>' });
@@ -440,7 +465,7 @@
     let head = '<section class="block profile-head"' + (m.banner ? ' style="--banner:url(' + esc(m.banner) + ')"' : '') + '><div class="profile-banner"></div><div class="profile-head-body">' + avatar(m, 'xl') +
       '<div class="grow"><h1>' + esc(m.username) + (m.banned ? ' <span class="badge badge--red">Banned</span>' : '') + '</h1><div class="muted">' + userTitle(m) + '</div>' + ui.roleBanner(m) +
       '<div class="small muted">' + (m.location ? '📍 ' + esc(m.location) + ' · ' : '') + 'Joined ' + fullDate(m.joined) + ' · ' + (store.isOnline(m) ? '<span class="online-dot"></span> Online now' : 'Last seen ' + timeAgo(m.lastSeen)) + '</div>' +
-      '<dl class="pairs pairs--row"><div><dt>Messages</dt><dd>' + num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + num(s.score) + '</dd></div><div><dt>Points</dt><dd><a href="#/members/' + m.id + '/trophies">' + s.points + '</a></dd></div><div><dt>Followers</dt><dd><a href="#/members/' + m.id + '/followers">' + m.followers.length + '</a></dd></div></dl></div>' +
+      '<dl class="pairs pairs--row"><div><dt>Messages</dt><dd>' + num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + num(s.score) + '</dd></div><div><dt>Reputation</dt><dd><a href="#/members/' + m.id + '/reputation">' + repBadge(s.rep) + '</a> <span class="small muted">' + store.repLevel(s.rep).label + '</span></dd></div><div><dt>Points</dt><dd><a href="#/members/' + m.id + '/trophies">' + s.points + '</a></dd></div><div><dt>Followers</dt><dd><a href="#/members/' + m.id + '/followers">' + m.followers.length + '</a></dd></div></dl></div>' +
       '<div class="profile-actions">' +
       (isMe ? '<a class="btn" href="#/account/personal">Edit profile</a>' : '') +
       (u && !isMe ? '<button class="btn btn-primary" data-act="follow" data-id="' + m.id + '">' + (following ? 'Unfollow' : 'Follow') + '</button>' +
@@ -453,7 +478,7 @@
         (u.role === 'admin' ? '<button data-act="set-role" data-id="' + m.id + '">Change user group</button>' : '') +
         '</div></span>' : '') +
       '</div></div></section>';
-    const tabs = [['profile-posts', 'Profile posts'], ['activity', 'Latest activity'], ['postings', 'Postings'], ['about', 'About'], ['trophies', 'Trophies'], ['followers', 'Followers'], ['following', 'Following']];
+    const tabs = [['profile-posts', 'Profile posts'], ['activity', 'Latest activity'], ['postings', 'Postings'], ['about', 'About'], ['reputation', 'Reputation'], ['trophies', 'Trophies'], ['followers', 'Followers'], ['following', 'Following']];
     if (staff) tabs.push(['warnings', 'Warnings']);
     head += '<nav class="tabs">' + tabs.map(([k, l]) => '<a class="tab' + (k === tab ? ' active' : '') + '" href="#/members/' + m.id + '/' + k + '">' + l + '</a>').join('') + '</nav>';
     let body = '';
@@ -475,6 +500,16 @@
         (m.signature ? '<h4>Signature</h4><div class="bbwrap">' + bbcode(m.signature) + '</div>' : '') +
         '<h4>Following</h4><div class="avatar-row">' + m.following.map((id) => avatar(store.user(id), 's')).join('') + (m.following.length ? '' : '<span class="muted">Nobody yet</span>') + '</div>' +
         '<h4>Followers</h4><div class="avatar-row">' + m.followers.map((id) => avatar(store.user(id), 's')).join('') + (m.followers.length ? '' : '<span class="muted">Nobody yet</span>') + '</div></div></section>';
+    } else if (tab === 'reputation') {
+      const list = (db().reps || []).filter((r) => r.toId === m.id).sort((a, b) => b.created - a.created);
+      const pos = list.filter((r) => r.value > 0), neg = list.filter((r) => r.value < 0);
+      body = '<section class="block"><div class="block-body"><div class="rep-summary">' + repBadge(s.rep) + '<div><b>' + store.repLevel(s.rep).label + '</b><div class="small muted">' + pos.length + ' positive · ' + neg.length + ' negative · rep power ' + store.repPower(m) + '</div></div></div>' +
+        (list.length ? list.map((r) => {
+          const p = store.post(r.postId), t = p && store.thread(p.threadId);
+          const visible = p && store.canViewPost(p, u);
+          const canRemove = u && (u.id === r.fromId || staff);
+          return '<div class="activity-item">' + avatar(store.user(r.fromId), 's') + '<div class="grow"><div>' + username(store.user(r.fromId)) + ' gave <span class="rep ' + (r.value < 0 ? 'rep--neg' : 'rep--3') + '">' + (r.value > 0 ? '+' : '') + r.value + '</span>' + (visible ? ' for <a href="#/threads/' + t.id + '/post-' + p.id + '">' + esc(t.title) + '</a>' : '') + '</div>' + (r.comment ? '<div class="activity-snippet">“' + esc(r.comment) + '”</div>' : '') + '<div class="small muted">' + time(r.created) + '</div></div>' + (canRemove ? '<button class="btn btn-sm" data-act="rep-remove" data-id="' + r.id + '">Remove</button>' : '') + '</div>';
+        }).join('') : '<div class="empty">' + esc(m.username) + ' hasn\'t received any reputation yet.</div>') + '</div></section>';
     } else if (tab === 'trophies') {
       body = '<section class="block"><div class="block-body">' + (s.trophies.length ? s.trophies.map((t) => '<div class="trophy"><div class="trophy-points">' + t.points + '</div><div><b>' + esc(t.title) + '</b><div class="small muted">' + esc(t.desc) + '</div></div></div>').join('') : '<div class="empty">No trophies yet.</div>') + '</div></section>';
     } else if (tab === 'followers' || tab === 'following') {
@@ -586,7 +621,7 @@
 
   /* ---------- alerts ---------- */
 
-  function alertIcon(t) { return { reply: '💬', mention: '@', quote: '❝', reaction: '💖', follow: '➕', 'follow-thread': '🧵', trophy: '🏆', conversation: '✉', 'profile-post': '📝', 'profile-comment': '💭', report: '🚩', 'report-resolved': '✅', warning: '⚠', welcome: '🌸' }[t] || '🔔'; }
+  function alertIcon(t) { return { reply: '💬', mention: '@', quote: '❝', reaction: '💖', follow: '➕', 'follow-thread': '🧵', trophy: '🏆', conversation: '✉', 'profile-post': '📝', 'profile-comment': '💭', report: '🚩', 'report-resolved': '✅', warning: '⚠', welcome: '🌸', rep: '⚖' }[t] || '🔔'; }
 
   function alertRow(a) {
     const from = a.fromId && store.user(a.fromId);
@@ -665,14 +700,14 @@
   function search(_, q) {
     const kw = q.get('q') || '', t = q.get('t') || '', m = q.get('m') || '', f = q.get('f') || '', titles = q.get('titles') === '1', o = q.get('o') || 'date';
     const searched = kw || m;
-    const results = searched ? store.search({ q: kw, type: t, member: m, forumId: f, titlesOnly: titles, order: o }) : [];
+    const results = searched ? store.search({ q: kw, type: t, member: m, forumId: f, titlesOnly: titles, order: o, viewer: me() }) : [];
     const html = '<div class="page-head"><h1>' + (searched ? 'Search results' + (kw ? ' for query: ' + esc(kw) : '') + (m ? ' by member: ' + esc(m) : '') : 'Search') + '</h1></div>' +
       '<form class="block form search-form" data-form="search"><div class="block-body">' +
       '<label class="field"><span>Keywords</span><input name="q" value="' + esc(kw) + '" autofocus></label>' +
       '<label class="check"><input type="checkbox" name="titles" value="1"' + (titles ? ' checked' : '') + '> Search titles only</label>' +
       '<div class="row wrap"><label class="field"><span>Posted by member</span><input name="m" value="' + esc(m) + '" list="member-names-s"><datalist id="member-names-s">' + db().users.map((u) => '<option value="' + esc(u.username) + '">').join('') + '</datalist></label>' +
       '<label class="field"><span>Search in</span><select name="t">' + [['', 'Everything'], ['thread', 'Threads'], ['post', 'Posts'], ['profile_post', 'Profile posts']].map(([v, l]) => '<option value="' + v + '"' + (v === t ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
-      '<label class="field"><span>Forum</span><select name="f"><option value="">All forums</option>' + db().forums.map((x) => '<option value="' + x.id + '"' + (x.id === f ? ' selected' : '') + '>' + esc(x.title) + '</option>').join('') + '</select></label>' +
+      '<label class="field"><span>Forum</span><select name="f"><option value="">All forums</option>' + db().forums.filter((x) => store.canViewForum(x, me())).map((x) => '<option value="' + x.id + '"' + (x.id === f ? ' selected' : '') + '>' + esc(x.title) + '</option>').join('') + '</select></label>' +
       '<label class="field"><span>Order by</span><select name="o"><option value="date"' + (o === 'date' ? ' selected' : '') + '>Date</option><option value="relevance"' + (o === 'relevance' ? ' selected' : '') + '>Relevance</option></select></label></div>' +
       '<div class="form-actions"><button class="btn btn-primary">🔍 Search</button></div></div></form>' +
       (searched ? '<section class="block"><h3 class="block-head">' + results.length + ' result' + (results.length === 1 ? '' : 's') + '</h3><div class="block-body">' + (results.length ? results.map(resultRow).join('') : '<div class="empty">No results found.</div>') + '</div></section>' : '');
@@ -681,9 +716,9 @@
 
   function tag([t]) {
     t = decodeURIComponent(t);
-    const ts = db().threads.filter((x) => x.tags.includes(t)).sort((a, b) => b.created - a.created);
+    const ts = visibleThreads(me()).filter((x) => x.tags.includes(t)).sort((a, b) => b.created - a.created);
     const all = {};
-    db().threads.forEach((x) => x.tags.forEach((g) => { all[g] = (all[g] || 0) + 1; }));
+    visibleThreads(me()).forEach((x) => x.tags.forEach((g) => { all[g] = (all[g] || 0) + 1; }));
     const html = '<div class="page-head"><h1>Tag: ' + esc(t) + '</h1></div><section class="block">' + (ts.length ? ts.map((x) => threadRow(x, me())).join('') : '<div class="empty">No content with this tag.</div>') + '</section>';
     const sidebar = '<section class="block"><h3 class="block-head">Popular tags</h3><div class="block-body tags">' + Object.entries(all).sort((a, b) => b[1] - a[1]).slice(0, 30).map(([g, n]) => '<a class="tag" href="#/tags/' + encodeURIComponent(g) + '">' + esc(g) + ' <small>' + n + '</small></a>').join('') + '</div></section>';
     return { title: 'Tag: ' + t, html, sidebar };
@@ -699,7 +734,7 @@
     let body = '';
     if (tab === 'posts') {
       const unread = q.get('unread') && u, watched = q.get('watched') && u;
-      let ts = db().threads.map((t) => ({ t, lp: store.lastPost(t.id) })).filter((x) => x.lp && x.lp.created > Date.now() - 60 * PP.DAY);
+      let ts = visibleThreads(u).map((t) => ({ t, lp: store.lastPost(t.id) })).filter((x) => x.lp && x.lp.created > Date.now() - 60 * PP.DAY);
       if (unread) ts = ts.filter((x) => threadUnread(x.t, u));
       if (watched) ts = ts.filter((x) => u.watched.includes(x.t.id));
       if (u) ts = ts.filter((x) => !u.ignoring.includes(x.t.authorId));
@@ -722,7 +757,7 @@
 
   function help([page]) {
     page = page || 'index';
-    const pages = [['rules', 'Forum rules'], ['faq', 'FAQ'], ['bbcode', 'BB codes'], ['reactions', 'Reactions'], ['trophies', 'Trophies & ranks'], ['smilies', 'Smilies'], ['terms', 'Terms and rules'], ['privacy', 'Privacy policy'], ['cookies', 'Cookie usage'], ['resources', 'Support resources']];
+    const pages = [['rules', 'Forum rules'], ['faq', 'FAQ'], ['bbcode', 'BB codes'], ['reactions', 'Reactions'], ['reputation', 'Reputation'], ['trophies', 'Trophies & ranks'], ['smilies', 'Smilies'], ['terms', 'Terms and rules'], ['privacy', 'Privacy policy'], ['cookies', 'Cookie usage'], ['resources', 'Support resources']];
     let body = '';
     const bbExamples = [['[b]Bold[/b]'], ['[i]Italic[/i]'], ['[u]Underline[/u]'], ['[s]Strike[/s]'], ['[color=#ec4899]Pink text[/color]'], ['[size=5]Big text[/size]'], ['[url=https://example.com]Link[/url]'], ['[img]https://via.placeholder.com/80[/img]'], ['[media]https://youtu.be/dQw4w9WgXcQ[/media]'], ['[quote=Aurora]Quoted text[/quote]'], ['[spoiler]Hidden text[/spoiler]'], ['[code]code block[/code]'], ['[list]\n[*]One\n[*]Two\n[/list]'], ['[center]Centered[/center]'], ['@Aurora (mention)']];
     const map = {
@@ -741,12 +776,20 @@
       faq: '<dl class="faq"><dt>What is PinkPill?</dt><dd>A looksmaxxing (appearance-improvement) community for women focused on evidence-based, safe and kind self-improvement.</dd>' +
         '<dt>Where is my data stored?</dt><dd>This version of PinkPill runs entirely in your browser. Accounts, posts and messages are saved in your browser\'s local storage, so they\'re only visible on this device. Admins can export/import the whole database from the Moderator panel. To make it a shared, multi-user forum, the data layer (<code>js/store.js</code>) can be connected to a hosted database.</dd>' +
         '<dt>How do alerts work?</dt><dd>You receive alerts when someone replies to a thread you watch, mentions you with @name, quotes you, reacts to your content, follows you, writes on your profile, or starts a conversation with you.</dd>' +
-        '<dt>How do I get a rating?</dt><dd>Post in <a href="#/forums/f-rating">Rate Me &amp; Feedback</a> or tick "Enable community ratings" when creating a thread. Each member can rate once (1–10) alongside constructive feedback.</dd>' +
+        '<dt>How do I get a rating?</dt><dd>Post in <a href="#/forums/f-rating">Rating</a> (or its members-only Private Ratings sub-forum) or tick "Enable community ratings" when creating a thread. Each member can rate once (1–10) alongside constructive feedback.</dd>' +
+        '<dt>What is rep?</dt><dd>Reputation is a trust score members give each other for helpful (or harmful) posts. See <a href="#/help/reputation">Reputation</a>.</dd>' +
+        '<dt>What is the Private Ratings forum?</dt><dd>A sub-forum of <a href="#/forums/f-rating">Rating</a> that only logged-in members can see. Guests can\'t view, search or find its threads.</dd>' +
         '<dt>What are points and ranks?</dt><dd>You earn trophy points for milestones. Your rank is based on your message count. See <a href="#/help/trophies">Trophies</a>.</dd>' +
         '<dt>How do I ignore someone?</dt><dd>Open their profile → ⋯ → Ignore. Their posts are hidden and they can\'t message you or post on your profile.</dd>' +
         '<dt>Can I delete my account?</dt><dd>Yes: Account → Your data.</dd></dl>',
       bbcode: '<table class="table"><thead><tr><th>You type</th><th>You get</th></tr></thead><tbody>' + bbExamples.map(([e]) => '<tr><td><code>' + esc(e).replace(/\n/g, '<br>') + '</code></td><td class="bbwrap">' + bbcode(e) + '</td></tr>').join('') + '</tbody></table>',
       reactions: '<table class="table"><tbody>' + PP.REACTIONS.map((r) => '<tr><td style="font-size:1.6em">' + r.emoji + '</td><td><b>' + r.label + '</b></td><td class="muted">' + (r.score > 0 ? 'Adds +' + r.score + ' to reaction score' : 'Neutral') + '</td></tr>').join('') + '</tbody></table>',
+      reputation: '<p><b>Reputation (rep)</b> shows how much the community trusts a member. Click <b>⚖ Rep</b> under any post to give a member positive or negative rep for it.</p><ul>' +
+        '<li>You can rep each post once, and give up to <b>' + store.REP_DAILY_LIMIT + '</b> reps every 24 hours.</li>' +
+        '<li><b>Rep power</b> — how much your rep is worth — starts at 1 and grows by 1 for every 100 messages you post (max 5). Moderators get +1 and admins +2.</li>' +
+        '<li>Negative rep needs at least <b>' + store.NEG_REP_MIN_POSTS + '</b> messages and a comment explaining why. Use it for rule-breaking or harmful advice, not disagreements.</li>' +
+        '<li>You can take back rep you gave from the member\'s Reputation tab. Staff can remove abusive rep.</li></ul>' +
+        '<h3>Rep levels</h3><table class="table"><tbody>' + [[-1, 'Negative'], [0, 'Neutral'], [5, 'Well liked'], [30, 'Respected'], [100, 'Highly respected'], [250, 'Legendary']].map(([n, l]) => '<tr><td>' + repBadge(n) + '</td><td><b>' + l + '</b></td><td class="muted">' + (n < 0 ? 'below 0' : n + '+') + '</td></tr>').join('') + '</tbody></table>',
       trophies: '<h3>Trophies</h3>' + PP.TROPHIES.map((t) => '<div class="trophy"><div class="trophy-points">' + t.points + '</div><div><b>' + esc(t.title) + '</b><div class="small muted">' + esc(t.desc) + '</div></div></div>').join('') +
         '<h3>Ranks</h3><table class="table"><tbody>' + PP.RANKS.map((r) => '<tr><td><b>' + r.title + '</b></td><td>' + r.min + '+ messages</td></tr>').join('') + '</tbody></table>',
       smilies: '<p>Use the 😊 button in the editor or type any emoji directly.</p><div class="smilies">' + '😀 😂 🥹 😊 😍 🥰 😘 😎 🤔 😮 😢 😭 😤 🙄 😴 🤗 🫶 💖 💕 💗 ✨ 🌸 🌷 💅 💄 💋 👑 💎 🔥 💯 👏 🙏 💪'.split(' ').map((e) => '<span>' + e + '</span>').join('') + '</div>',
@@ -793,7 +836,7 @@
       body = '<section class="block"><div class="block-body">' + (ws.length ? ws.map((w) => '<div class="activity-item"><div>' + username(w.user) + ': <b>' + esc(w.reason) + '</b> <span class="badge">' + w.points + ' pt</span><div class="small muted">by ' + username(store.user(w.by)) + ' · ' + time(w.created) + '</div></div></div>').join('') : '<div class="empty">No warnings issued.</div>') + '</div></section>';
     } else if (tab === 'forums' && u.role === 'admin') {
       body = db().categories.slice().sort((a, b) => a.order - b.order).map((c) => '<section class="block"><h3 class="block-head">' + esc(c.title) + ' <button class="btn btn-sm" data-act="edit-category" data-id="' + c.id + '">Edit</button></h3><div class="block-body">' +
-        db().forums.filter((f) => f.categoryId === c.id).sort((a, b) => a.order - b.order).map((f) => '<div class="member-row"><span class="node-icon">' + f.icon + '</span><div class="grow"><b>' + esc(f.title) + '</b><div class="small muted">' + esc(f.desc) + (f.staffOnly ? ' · staff-only posting' : '') + (f.rating ? ' · rating forum' : '') + '</div></div><button class="btn btn-sm" data-act="edit-forum" data-id="' + f.id + '">Edit</button> <button class="btn btn-sm btn-danger" data-act="delete-forum" data-id="' + f.id + '">Delete</button></div>').join('') + '</div></section>').join('') +
+        db().forums.filter((f) => f.categoryId === c.id).sort((a, b) => a.order - b.order).filter((f) => !f.parentId).flatMap((f) => { const out = []; const walk = (x, d) => { out.push([x, d]); store.childForums(x.id).forEach((ch) => walk(ch, d + 1)); }; walk(f, 0); return out; }).map(([f, depth]) => '<div class="member-row" style="padding-left:' + depth * 28 + 'px">' + (depth ? '<span class="muted">↳</span>' : '') + '<span class="node-icon">' + f.icon + '</span><div class="grow"><b>' + esc(f.title) + '</b><div class="small muted">' + esc(f.desc) + (f.staffOnly ? ' · staff-only posting' : '') + (f.rating ? ' · rating forum' : '') + (f.membersOnly ? ' · 🔒 members only' : '') + '</div></div><button class="btn btn-sm" data-act="edit-forum" data-id="' + f.id + '">Edit</button> <button class="btn btn-sm btn-danger" data-act="delete-forum" data-id="' + f.id + '">Delete</button></div>').join('') + '</div></section>').join('') +
         '<div class="form-actions"><button class="btn btn-primary" data-act="edit-forum">✚ Add forum</button> <button class="btn" data-act="edit-category">✚ Add category</button></div>';
     } else if (tab === 'stats' && u.role === 'admin') {
       const d = db();
@@ -814,7 +857,7 @@
 
   function notFound(what) { return { title: 'Not found', html: '<div class="notice notice--error">The requested ' + esc(what || 'page') + ' could not be found. <a href="#/">Back to forums</a></div>' }; }
   function errorView(msg) { return { title: 'Oops', html: '<div class="notice notice--error">' + esc(msg) + '</div>' }; }
-  function loginRequired() { return { title: 'Log in required', html: '<div class="notice">You must be logged in to do that. <a class="btn btn-primary btn-sm" href="#/login?return=' + encodeURIComponent(location.hash) + '">Log in</a> <a class="btn btn-sm" href="#/register">Register</a></div>' }; }
+  function loginRequired(msg) { return { title: 'Log in required', html: '<div class="notice">' + esc(typeof msg === 'string' ? msg : 'You must be logged in to do that.') + ' <a class="btn btn-primary btn-sm" href="#/login?return=' + encodeURIComponent(location.hash) + '">Log in</a> <a class="btn btn-sm" href="#/register">Register</a></div>' }; }
 
-  PP.views = { home, forum, threadView, postThread, members, online, member, login, register, lostPassword, account, alerts, alertRow, conversations, conversationNew, conversation, search, tag, whatsNew, help, mod, notFound, errorView, threadUnread, forumUnread };
+  PP.views = { repBadge, home, forum, threadView, postThread, members, online, member, login, register, lostPassword, account, alerts, alertRow, conversations, conversationNew, conversation, search, tag, whatsNew, help, mod, notFound, errorView, threadUnread, forumUnread };
 })();

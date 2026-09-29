@@ -494,3 +494,23 @@ section.block > .table { margin: 0; }
   .row:not(.wrap) { flex-wrap: wrap; }
   .input-title { width: 100%; }
 }
+
+/* ---------- sub-forums ---------- */
+.node-subs { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; font-size: .84rem; }
+.node-subs a { color: var(--muted); }
+.node-subs a.unread { color: var(--link); font-weight: 700; }
+.btn-sub { font-weight: 500; opacity: .9; }
+
+/* ---------- reputation ---------- */
+.rep { display: inline-block; font-weight: 800; font-size: .8rem; padding: 0 7px; border-radius: 10px; line-height: 1.6; background: var(--surface-2); color: var(--muted); }
+.rep--2 { background: #dcfce7; color: #15803d; }
+.rep--3 { background: #bbf7d0; color: #166534; }
+.rep--4 { background: linear-gradient(90deg, #86efac, #fde68a); color: #14532d; }
+.rep--5 { background: linear-gradient(90deg, #fbbf24, #f472b6); color: #fff; }
+.rep--neg { background: #fee2e2; color: #b91c1c; }
+.rep-post { background: #dcfce7; color: #166534; border: 0; border-radius: 10px; font: inherit; font-size: .75rem; font-weight: 700; padding: 1px 8px; cursor: pointer; }
+.rep-post.neg { background: #fee2e2; color: #b91c1c; }
+.rep-choice { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.rep-choice label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.rep-summary { display: flex; gap: 12px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.rep-summary > .rep { font-size: 1.3rem; padding: 2px 14px; }

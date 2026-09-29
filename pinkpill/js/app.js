@@ -291,13 +291,18 @@
     },
     'reset-data'() { confirmBox('Reset the whole forum to demo content? All data in this browser will be lost.', () => { store.reset(); toast('Forum reset.'); location.hash = '#/'; render(); }, 'Reset'); },
     'edit-forum'(el) {
-      const f = el.dataset.id ? store.forum(el.dataset.id) : { id: '', title: '', desc: '', icon: '💬', categoryId: db().categories[0].id };
+      const f = el.dataset.id ? store.forum(el.dataset.id) : { id: '', title: '', desc: '', icon: '💬', categoryId: db().categories[0].id, parentId: null };
+      const parents = db().forums.filter((x) => x.id !== f.id && !(f.id && store.forumTree(f.id).includes(x.id)));
       modal(f.id ? 'Edit forum' : 'Add forum', '<form data-form="edit-forum" data-id="' + f.id + '"><label class="field"><span>Title</span><input name="title" value="' + esc(f.title) + '" required></label><label class="field"><span>Description</span><input name="desc" value="' + esc(f.desc) + '"></label><label class="field"><span>Icon (emoji)</span><input name="icon" value="' + esc(f.icon) + '" maxlength="4"></label>' +
-        '<label class="field"><span>Category</span><select name="categoryId">' + db().categories.map((c) => '<option value="' + c.id + '"' + (c.id === f.categoryId ? ' selected' : '') + '>' + esc(c.title) + '</option>').join('') + '</select></label><label class="field"><span>Display order</span><input type="number" name="order" value="' + (f.order || 0) + '"></label>' +
+        '<label class="field"><span>Category</span><select name="categoryId">' + db().categories.map((c) => '<option value="' + c.id + '"' + (c.id === f.categoryId ? ' selected' : '') + '>' + esc(c.title) + '</option>').join('') + '</select></label>' +
+        '<label class="field"><span>Parent forum <span class="small muted">(makes this a sub-forum)</span></span><select name="parentId"><option value="">(None — top-level forum)</option>' + parents.map((x) => '<option value="' + x.id + '"' + (x.id === f.parentId ? ' selected' : '') + '>' + esc(x.title) + '</option>').join('') + '</select></label>' +
+        '<label class="field"><span>Display order</span><input type="number" name="order" value="' + (f.order || 0) + '"></label>' +
+        '<label class="check"><input type="checkbox" name="membersOnly"' + (f.membersOnly ? ' checked' : '') + '> 🔒 Members only (hidden from guests)</label>' +
         '<label class="check"><input type="checkbox" name="staffOnly"' + (f.staffOnly ? ' checked' : '') + '> Only staff can post threads</label><label class="check"><input type="checkbox" name="rating"' + (f.rating ? ' checked' : '') + '> Rating forum (threads have ratings enabled)</label><div class="form-actions"><button class="btn btn-primary">Save</button></div></form>');
     },
     'delete-forum'(el) {
       const f = store.forum(el.dataset.id);
+      if (store.childForums(f.id).length) return toast('Move or delete this forum\'s sub-forums first.', 'error');
       if (store.threadsIn(f.id).length) return toast('Move or delete this forum\'s ' + store.threadsIn(f.id).length + ' threads first.', 'error');
       confirmBox('Delete forum "' + f.title + '"?', () => { db().forums = db().forums.filter((x) => x.id !== f.id); store.commit(); refresh(); }, 'Delete');
     },
@@ -306,6 +311,21 @@
       modal(c.id ? 'Edit category' : 'Add category', '<form data-form="edit-category" data-id="' + c.id + '"><label class="field"><span>Title</span><input name="title" value="' + esc(c.title) + '" required></label><label class="field"><span>Display order</span><input type="number" name="order" value="' + c.order + '"></label><div class="form-actions"><button class="btn btn-primary">Save</button>' + (c.id && !db().forums.some((f) => f.categoryId === c.id) ? ' <button type="button" class="btn btn-danger" data-act="delete-category" data-id="' + c.id + '">Delete</button>' : '') + '</div></form>');
     },
     'delete-category'(el) { db().categories = db().categories.filter((c) => c.id !== el.dataset.id); store.commit(); closeModal(); refresh(); },
+    rep(el) {
+      if (!need()) return;
+      const u = me(), p = store.post(el.dataset.id), a = store.user(p.authorId);
+      const left = store.REP_DAILY_LIMIT - store.repsGivenToday(u);
+      modal('Give reputation to ' + (a ? a.username : 'member'), '<form data-form="give-rep" data-id="' + p.id + '"><p class="small muted">Your rep power is <b>' + store.repPower(u) + '</b>. You can give ' + left + ' more rep today. <a href="#/help/reputation" data-close>How rep works</a></p>' +
+        '<div class="rep-choice"><label><input type="radio" name="kind" value="pos" checked> <span class="rep rep--3">+ Positive</span> <span class="small muted">helpful, informative, kind</span></label>' +
+        '<label><input type="radio" name="kind" value="neg"> <span class="rep rep--neg">− Negative</span> <span class="small muted">harmful advice or rule-breaking</span></label></div>' +
+        '<label class="field"><span>Comment <span class="muted small">(optional for positive, required for negative)</span></span><input name="comment" maxlength="200"></label><div class="form-actions"><button class="btn btn-primary">Give rep</button> <button type="button" class="btn" data-close>Cancel</button></div></form>');
+    },
+    'rep-list'(el) {
+      const u = me(), staff = store.isStaff(u);
+      const reps = store.repsForPost(el.dataset.id).sort((a, b) => b.created - a.created);
+      modal('Reputation for this post', '<div class="member-list">' + reps.map((r) => { const g = store.user(r.fromId); return '<div class="member-row">' + ui.avatar(g, 's') + '<div class="grow">' + ui.username(g) + (r.comment ? '<div class="small">“' + esc(r.comment) + '”</div>' : '') + '<div class="small muted">' + esc(PP.timeAgo(r.created)) + '</div></div><span class="rep ' + (r.value < 0 ? 'rep--neg' : 'rep--3') + '">' + (r.value > 0 ? '+' : '') + r.value + '</span>' + (u && (u.id === r.fromId || staff) ? ' <button class="btn btn-sm" data-act="rep-remove" data-id="' + r.id + '">Remove</button>' : '') + '</div>'; }).join('') + '</div>');
+    },
+    'rep-remove'(el) { confirmBox('Remove this reputation?', () => { run(() => store.removeRep(me(), el.dataset.id)); toast('Reputation removed.'); refresh(); }, 'Remove'); },
     'nav-toggle'() { document.body.classList.toggle('nav-open'); },
   };
 
@@ -433,11 +453,16 @@
       if (d.desktopAlerts && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
       applyTheme(); toast('Your changes have been saved.');
     },
+    'give-rep'(f, d) {
+      const v = store.giveRep(me(), f.dataset.id, d.kind !== 'neg', d.comment);
+      closeModal(); toast('You gave ' + (v > 0 ? '+' : '') + v + ' reputation.'); refresh();
+    },
     warn(f, d) { store.warnUser(me(), f.dataset.id, d.preset + (d.details ? ': ' + d.details : ''), d.points); closeModal(); toast('Warning issued.'); refresh(); },
     ban(f, d) { store.banUser(me(), f.dataset.id, d.reason); closeModal(); toast('Member banned.'); refresh(); },
     'set-role'(f, d) { store.setRole(me(), f.dataset.id, d.role); closeModal(); toast('User group updated.'); refresh(); },
     'edit-forum'(f, d) {
-      const vals = { title: d.title.trim(), desc: d.desc.trim(), icon: d.icon || '💬', categoryId: d.categoryId, order: Number(d.order) || 0, staffOnly: !!d.staffOnly, rating: !!d.rating };
+      const parent = d.parentId ? store.forum(d.parentId) : null;
+      const vals = { title: d.title.trim(), desc: d.desc.trim(), icon: d.icon || '💬', categoryId: parent ? parent.categoryId : d.categoryId, parentId: parent ? parent.id : null, order: Number(d.order) || 0, staffOnly: !!d.staffOnly, rating: !!d.rating, membersOnly: !!d.membersOnly };
       if (f.dataset.id) Object.assign(store.forum(f.dataset.id), vals);
       else db().forums.push(Object.assign({ id: PP.uid('f-') }, vals));
       store.commit(); closeModal(); refresh();

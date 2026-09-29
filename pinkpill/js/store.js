@@ -50,6 +50,9 @@
     { id: 'react-100', points: 15, title: 'Seriously likeable!', desc: 'Reaction score of 100.', test: (s) => s.score >= 100 },
     { id: 'react-250', points: 20, title: 'Can\'t get enough of your stuff', desc: 'Reaction score of 250.', test: (s) => s.score >= 250 },
     { id: 'followers-5', points: 5, title: 'Trendsetter', desc: 'Followed by 5 members.', test: (s) => s.followers >= 5 },
+    { id: 'rep-10', points: 5, title: 'Respected', desc: 'Reached 10 reputation.', test: (s) => s.rep >= 10 },
+    { id: 'rep-50', points: 10, title: 'Trusted voice', desc: 'Reached 50 reputation.', test: (s) => s.rep >= 50 },
+    { id: 'rep-250', points: 20, title: 'Legendary', desc: 'Reached 250 reputation.', test: (s) => s.rep >= 250 },
     { id: 'glowup', points: 10, title: 'Glow-up documented', desc: 'Started a thread in Glow-Ups & Success Stories.', test: (s) => s.glowups >= 1 },
   ];
 
@@ -76,13 +79,70 @@
     return 'x' + h;
   }
 
+  /* Category → forum layout. A forum with `parentId` is a sub-forum of that forum.
+   * `membersOnly` forums are hidden from guests entirely. */
+  function forumStructure() {
+    return [
+      { id: 'c-info', title: 'Information', forums: [
+        { id: 'f-news', title: 'News', desc: 'Beauty, health and science news worth knowing about.', icon: '📰', staffOnly: true },
+        { id: 'f-announce', title: 'Announcements', desc: 'Site updates, rule changes and events.', icon: '📣', staffOnly: true },
+      ] },
+      { id: 'c-looks', title: 'Looksmaxxing', forums: [
+        { id: 'f-looks', title: 'Looksmaxxing', desc: 'General looksmaxxing discussion, plus sub-forums for every area.', icon: '🌸' },
+        { id: 'f-skin', parentId: 'f-looks', title: 'Skincare', desc: 'Routines, actives, acne, anti-aging, SPF.', icon: '🧴' },
+        { id: 'f-hair', parentId: 'f-looks', title: 'Hair, Brows & Lashes', desc: 'Growth, colour, cuts, care and styling.', icon: '💇‍♀️' },
+        { id: 'f-makeup', parentId: 'f-looks', title: 'Makeup', desc: 'Techniques, products, colour analysis, face-shape tips.', icon: '💄' },
+        { id: 'f-fitness', parentId: 'f-looks', title: 'Fitness', desc: 'Training programs, strength, cardio, posture work.', icon: '🏋️‍♀️' },
+        { id: 'f-body', parentId: 'f-looks', title: 'Body', desc: 'Body composition, proportions, posture, body care — sustainably.', icon: '🧘‍♀️' },
+        { id: 'f-nutrition', parentId: 'f-looks', title: 'Nutrition & Health', desc: 'Evidence-based eating, sleep, hormones. No crash diets.', icon: '🥗' },
+        { id: 'f-face', parentId: 'f-looks', title: 'Facial Aesthetics', desc: 'Face shape, harmony, orthodontics, jawline.', icon: '💎' },
+        { id: 'f-style', parentId: 'f-looks', title: 'Style & Fashion', desc: 'Wardrobe, colour seasons, body-type dressing, fragrance.', icon: '👗' },
+        { id: 'f-procedures', parentId: 'f-looks', title: 'Cosmetic Procedures', desc: 'Research & experiences with licensed professionals only.', icon: '🩺' },
+        { id: 'f-questions', title: 'Looksmaxxing Questions', desc: 'Ask anything about looksmaxxing — no question is too basic.', icon: '❓' },
+      ] },
+      { id: 'c-rating', title: 'Rating', forums: [
+        { id: 'f-rating', title: 'Rating', desc: 'Opt-in, constructive ratings and feedback on your pics. Be kind or be banned.', icon: '⭐', rating: true },
+        { id: 'f-private-rating', parentId: 'f-rating', title: 'Private Ratings', desc: 'Only visible to logged-in members. Hidden from guests and search engines.', icon: '🔒', rating: true, membersOnly: true },
+      ] },
+      { id: 'c-community', title: 'Community', forums: [
+        { id: 'f-intro', title: 'Introductions', desc: 'New here? Say hi and tell us about your goals.', icon: '👋' },
+        { id: 'f-success', title: 'Glow-Ups & Success Stories', desc: 'Before & afters, progress logs, wins.', icon: '🏆' },
+        { id: 'f-wellbeing', title: 'Mental Health & Confidence', desc: 'Body image, self-esteem, support. Resources pinned.', icon: '🫶' },
+        { id: 'f-feedback', title: 'Site Feedback & Bugs', desc: 'Suggestions and bug reports for PinkPill.', icon: '🛠️' },
+      ] },
+      { id: 'c-offtopic', title: 'Off-Topic', forums: [
+        { id: 'f-offtopic', title: 'Off-Topic', desc: 'Anything not about looks: music, shows, life, memes. Keep it civil.', icon: '☕' },
+      ] },
+    ];
+  }
+
+  /* Upgrade databases saved by older versions of the site. */
+  function migrate(d) {
+    if (d.version < 2) {
+      const known = new Set();
+      const cats = forumStructure();
+      const oldForums = d.forums;
+      d.categories = []; d.forums = [];
+      cats.forEach((c, ci) => {
+        d.categories.push({ id: c.id, title: c.title, order: ci });
+        c.forums.forEach((f, fi) => { known.add(f.id); d.forums.push(Object.assign({ categoryId: c.id, order: fi, parentId: null }, f)); });
+      });
+      // keep forums an admin created, moving them into Community
+      oldForums.filter((f) => !known.has(f.id) && f.id !== 'f-general').forEach((f) => d.forums.push(Object.assign({}, f, { categoryId: 'c-community', parentId: null })));
+      d.threads.forEach((t) => { if (t.forumId === 'f-general') t.forumId = 'f-looks'; });
+      d.reps = d.reps || [];
+      d.version = 2;
+    }
+    return d;
+  }
+
   /* ---------- seed data ---------- */
 
   function seed() {
     const now = Date.now();
     const db = {
-      version: 1,
-      users: [], categories: [], forums: [], threads: [], posts: [],
+      version: 2,
+      users: [], reps: [], categories: [], forums: [], threads: [], posts: [],
       profilePosts: [], conversations: [], alerts: [], reports: [],
       settings: { siteName: 'PinkPill', created: now },
     };
@@ -112,35 +172,10 @@
     const u6 = mkUser('Freya', { bio: 'Just here to learn!', location: 'Oslo' });
     const users = [admin, mod, u1, u2, u3, u4, u5, u6];
 
-    const cats = [
-      { id: 'c-main', title: 'Main', forums: [
-        { id: 'f-announce', title: 'Announcements', desc: 'Site news, rule updates and events.', icon: '📣', staffOnly: true },
-        { id: 'f-intro', title: 'Introductions', desc: 'New here? Say hi and tell us about your goals.', icon: '👋' },
-        { id: 'f-general', title: 'General Glow-Up', desc: 'Everything about improving your appearance that doesn\'t fit elsewhere.', icon: '🌸' },
-      ] },
-      { id: 'c-glow', title: 'Glow-Up Guides', forums: [
-        { id: 'f-skin', title: 'Skincare', desc: 'Routines, actives, acne, anti-aging, SPF.', icon: '🧴' },
-        { id: 'f-hair', title: 'Hair & Brows & Lashes', desc: 'Growth, colour, cuts, care and styling.', icon: '💇‍♀️' },
-        { id: 'f-makeup', title: 'Makeup', desc: 'Techniques, products, colour analysis, face-shape tips.', icon: '💄' },
-        { id: 'f-fitness', title: 'Fitness & Body', desc: 'Training, posture, body recomposition — sustainably.', icon: '🏋️‍♀️' },
-        { id: 'f-nutrition', title: 'Nutrition & Health', desc: 'Evidence-based eating, sleep, hormones. No crash diets.', icon: '🥗' },
-        { id: 'f-face', title: 'Facial Aesthetics', desc: 'Face shape, harmony, orthodontics, posture, jawline.', icon: '💎' },
-        { id: 'f-style', title: 'Style & Fashion', desc: 'Wardrobe, colour seasons, body-type dressing, fragrance.', icon: '👗' },
-        { id: 'f-procedures', title: 'Cosmetic Procedures', desc: 'Research & experiences with licensed professionals only.', icon: '🩺' },
-      ] },
-      { id: 'c-community', title: 'Community', forums: [
-        { id: 'f-rating', title: 'Rate Me & Feedback', desc: 'Opt-in, constructive feedback on your pics. Be kind or be banned.', icon: '⭐', rating: true },
-        { id: 'f-success', title: 'Glow-Ups & Success Stories', desc: 'Before & afters, progress logs, wins.', icon: '🏆' },
-        { id: 'f-wellbeing', title: 'Mental Health & Confidence', desc: 'Body image, self-esteem, support. Resources pinned.', icon: '🫶' },
-        { id: 'f-offtopic', title: 'Off-Topic', desc: 'Anything else. Keep it civil.', icon: '☕' },
-      ] },
-      { id: 'c-site', title: 'Site', forums: [
-        { id: 'f-feedback', title: 'Site Feedback & Bugs', desc: 'Suggestions and bug reports for PinkPill.', icon: '🛠️' },
-      ] },
-    ];
+    const cats = forumStructure();
     cats.forEach((c, ci) => {
       db.categories.push({ id: c.id, title: c.title, order: ci });
-      c.forums.forEach((f, fi) => db.forums.push(Object.assign({ categoryId: c.id, order: fi }, f)));
+      c.forums.forEach((f, fi) => db.forums.push(Object.assign({ categoryId: c.id, order: fi, parentId: null }, f)));
     });
 
     let t0 = now - 20 * DAY;
@@ -180,7 +215,7 @@
       [u1, 'Adapalene changed my skin completely. Purging for ~6 weeks then clear.'],
     ], { sticky: true, tags: ['skincare', 'routine', 'beginner'] });
 
-    mkThread('f-skin', u3, 'Best sunscreens for oily skin that don\'t pill?', 'question', [
+    mkThread('f-questions', u3, 'Best sunscreens for oily skin that don\'t pill?', 'question', [
       [u3, 'Everything I try either pills under makeup or makes me look greasy by noon. Recommendations?'],
       [u2, 'Look for fluid/gel textures. Let it set 5-10 min before makeup and use a silicone-free primer if it pills.'],
       [mod, 'Asian and EU formulas tend to be more elegant. Also, pilling is often from layering too many products — simplify.'],
@@ -258,6 +293,44 @@
       [admin, 'Added to the roadmap 💗'],
     ]);
 
+    mkThread('f-news', admin, 'New study: daily SPF use slows visible skin aging', 'research', [
+      [admin, 'A randomised trial summary making the rounds again: participants who applied broad-spectrum sunscreen [b]daily[/b] showed significantly less photoaging over 4.5 years than those who used it at their own discretion.\n\nTakeaway: the best anti-aging product is still the one you wear every morning. Discuss in [url=#/forums/f-skin]Skincare[/url].'],
+      [mod, 'The classic Nambour trial! Always worth re-sharing.'],
+    ], { tags: ['news', 'spf'] });
+
+    mkThread('f-looks', u5, 'What was your single biggest looksmax so far?', 'discussion', [
+      [u5, 'For me it was getting my brows shaped professionally. Changed my whole face. What about you?'],
+      [u1, 'Fixing my sleep. Skin, under-eyes, mood — everything improved.'],
+      [u3, 'Lifting. Posture + shoulders changed how clothes fit completely.'],
+      [u6, 'Finding my colour season 💗'],
+    ], { tags: ['discussion'] });
+
+    mkThread('f-body', u3, 'Posture fixes that made the biggest visual difference', 'guide', [
+      [u3, '• Chin tucks (2x10 daily)\n• Wall angels\n• Face pulls & rows > pressing for a while\n• Hip flexor stretches if you sit all day\n\nTake a side-profile photo now and in 8 weeks. You\'ll be surprised.'],
+      [u4, 'Adding thoracic extensions over a foam roller — game changer.'],
+    ], { tags: ['posture', 'body'] });
+
+    mkThread('f-questions', u6, 'Is it worth seeing a dermatologist for mild acne?', 'question', [
+      [u6, 'My acne isn\'t severe but it never fully goes away. Is a derm overkill?'],
+      [mod, 'Not overkill at all. Prescription topicals (adapalene, azelaic acid, clindamycin, etc.) are cheap and much more effective than guessing with OTC products.'],
+    ], { tags: ['acne', 'dermatology'] });
+
+    mkThread('f-private-rating', u5, 'Private: rate my new haircut (members only)', 'rateme', [
+      [u5, 'Posting here since it\'s hidden from guests. Went from long layers to a collarbone bob. Thoughts?\n\n[i](image removed in demo)[/i]'],
+      [u2, 'Suits your jaw so well! Maybe a slightly warmer gloss next time.', { rating: 8 }],
+      [u1, 'The length is perfect for you.', { rating: 8 }],
+    ], { tags: ['hair', 'feedback'], ratingEnabled: true });
+
+    // Reputation: members rep helpful posts (+) or rule-breaking ones (−).
+    const repComments = ['Super helpful, thank you!', 'Great advice 💗', 'Saved this', 'So informative', 'Exactly what I needed', 'Love this'];
+    db.posts.forEach((p) => {
+      users.forEach((g) => {
+        if (g.id !== p.authorId && Math.random() < 0.12) {
+          db.reps.push({ id: uid('rep'), postId: p.id, fromId: g.id, toId: p.authorId, value: g.role === 'admin' ? 3 : g.role === 'mod' ? 2 : 1, comment: Math.random() < 0.6 ? repComments[Math.floor(Math.random() * repComments.length)] : '', created: p.created + HOUR });
+        }
+      });
+    });
+
     db.profilePosts.push(
       { id: uid('pp'), profileUserId: u6.id, authorId: u2.id, content: 'Welcome to PinkPill! 💕', created: now - 3 * DAY, reactions: { [u6.id]: 'love' }, comments: [{ id: uid('pc'), authorId: u6.id, content: 'Thank you!!', created: now - 3 * DAY + HOUR }] },
       { id: uid('pp'), profileUserId: u1.id, authorId: u3.id, content: 'Your hair log is so motivating!', created: now - 2 * DAY, reactions: {}, comments: [] },
@@ -282,7 +355,7 @@
       const raw = localStorage.getItem(KEY);
       db = raw ? JSON.parse(raw) : null;
     } catch (e) { db = null; }
-    if (!db || !db.version) { db = seed(); save(); }
+    if (!db || !db.version) { db = seed(); save(); } else if (db.version < 2) { migrate(db); save(); }
     return db;
   }
 
@@ -306,7 +379,7 @@
   function importJSON(text) {
     const data = JSON.parse(text);
     if (!data || !Array.isArray(data.users) || !Array.isArray(data.threads)) throw new Error('Not a PinkPill backup file.');
-    db = data; commit();
+    db = migrate(data.version ? data : Object.assign(data, { version: 1 })); commit();
   }
 
   /* ---------- session ---------- */
@@ -386,10 +459,23 @@
   const threadsIn = (forumId) => db.threads.filter((t) => t.forumId === forumId);
   const lastPost = (threadId) => { const ps = postsIn(threadId).filter((p) => !p.deleted); return ps[ps.length - 1]; };
 
-  function forumStats(forumId) {
-    const ts = threadsIn(forumId);
-    const ids = new Set(ts.map((t) => t.id));
-    const ps = db.posts.filter((p) => ids.has(p.threadId) && !p.deleted);
+  const childForums = (id) => db.forums.filter((f) => f.parentId === id).sort((a, b) => a.order - b.order);
+  function forumTree(id) { return [id].concat(...childForums(id).map((c) => forumTree(c.id))); }
+  function forumPath(f) { const out = []; while (f) { out.unshift(f); f = f.parentId ? forum(f.parentId) : null; } return out; }
+  /* A forum is visible if it (and every parent) allows the viewer; membersOnly hides it from guests. */
+  function canViewForum(f, u) {
+    if (!f) return false;
+    if (f.membersOnly && !u) return false;
+    return f.parentId ? canViewForum(forum(f.parentId), u) : true;
+  }
+  const canViewThread = (t, u) => !!t && canViewForum(forum(t.forumId), u);
+  const canViewPost = (p, u) => !!p && canViewThread(thread(p.threadId), u);
+
+  function forumStats(forumId, u) {
+    const ids = new Set(forumTree(forumId).filter((id) => arguments.length < 2 || canViewForum(forum(id), u)));
+    const ts = db.threads.filter((t) => ids.has(t.forumId));
+    const tids = new Set(ts.map((t) => t.id));
+    const ps = db.posts.filter((p) => tids.has(p.threadId) && !p.deleted);
     let last = null;
     ps.forEach((p) => { if (!last || p.created > last.created) last = p; });
     return { threads: ts.length, messages: ps.length, last };
@@ -401,7 +487,7 @@
     ps.forEach((p) => Object.values(p.reactions || {}).forEach((r) => { const def = REACTIONS.find((x) => x.id === r); score += def ? def.score : 0; }));
     db.profilePosts.filter((p) => p.authorId === u.id).forEach((p) => { score += Object.keys(p.reactions || {}).length; });
     const glowups = db.threads.filter((t) => t.authorId === u.id && t.forumId === 'f-success').length;
-    const s = { posts: ps.length, score, followers: u.followers.length, glowups, threads: db.threads.filter((t) => t.authorId === u.id).length };
+    const s = { posts: ps.length, score, rep: repFor(u.id), followers: u.followers.length, glowups, threads: db.threads.filter((t) => t.authorId === u.id).length };
     s.trophies = TROPHIES.filter((t) => t.test(s));
     s.points = s.trophies.reduce((a, t) => a + t.points, 0);
     s.rank = RANKS.filter((r) => s.posts >= r.min).pop().title;
@@ -474,6 +560,7 @@
     const f = forum(forumId);
     if (!f) throw new Error('Forum not found.');
     if (f.staffOnly && !isStaff(u)) throw new Error('Only staff can post in this forum.');
+    if (!canViewForum(f, u)) throw new Error('You don\'t have access to this forum.');
     title = (title || '').trim();
     if (title.length < 3) throw new Error('Please enter a title of at least 3 characters.');
     if ((content || '').trim().length < 2) throw new Error('Please enter a message.');
@@ -774,9 +861,63 @@
   function leaveConversation(u, convId) { const c = db.conversations.find((x) => x.id === convId); if (c) { c.left = c.left || []; c.left.push(u.id); commit(); } }
   function toggleStarConv(u, convId) { const c = db.conversations.find((x) => x.id === convId); if (c) { c.starred = c.starred || []; toggleIn(c.starred, u.id); commit(); } }
 
+  /* ---------- reputation ---------- */
+
+  const REP_DAILY_LIMIT = 10;
+  const NEG_REP_MIN_POSTS = 10;
+
+  /* How much one rep from this member is worth: grows with activity, staff get a bonus. */
+  function repPower(u) {
+    if (!u) return 0;
+    const posts = db.posts.filter((p) => p.authorId === u.id && !p.deleted).length;
+    const base = Math.min(5, 1 + Math.floor(posts / 100));
+    return base + (u.role === 'admin' ? 2 : u.role === 'mod' ? 1 : 0);
+  }
+  const repFor = (userId) => (db.reps || []).filter((r) => r.toId === userId).reduce((a, r) => a + r.value, 0);
+  const repsForPost = (postId) => (db.reps || []).filter((r) => r.postId === postId);
+  const repsGivenToday = (u) => (db.reps || []).filter((r) => r.fromId === u.id && Date.now() - r.created < DAY).length;
+
+  function repLevel(total) {
+    if (total >= 250) return { label: 'Legendary', cls: 'rep--5' };
+    if (total >= 100) return { label: 'Highly respected', cls: 'rep--4' };
+    if (total >= 30) return { label: 'Respected', cls: 'rep--3' };
+    if (total >= 5) return { label: 'Well liked', cls: 'rep--2' };
+    if (total >= 0) return { label: 'Neutral', cls: 'rep--1' };
+    return { label: 'Negative', cls: 'rep--neg' };
+  }
+
+  function giveRep(u, postId, positive, comment) {
+    assertCan(u);
+    const p = post(postId);
+    if (!p || p.deleted) throw new Error('Post not found.');
+    if (p.authorId === u.id) throw new Error('You can\'t give reputation to yourself.');
+    db.reps = db.reps || [];
+    if (db.reps.some((r) => r.postId === postId && r.fromId === u.id)) throw new Error('You have already given reputation for this post.');
+    if (repsGivenToday(u) >= REP_DAILY_LIMIT) throw new Error('You\'ve given ' + REP_DAILY_LIMIT + ' reputation in the last 24 hours. Try again later.');
+    const own = db.posts.filter((x) => x.authorId === u.id && !x.deleted).length;
+    if (!positive && own < NEG_REP_MIN_POSTS && !isStaff(u)) throw new Error('You need at least ' + NEG_REP_MIN_POSTS + ' messages to give negative reputation.');
+    comment = (comment || '').trim().slice(0, 200);
+    if (!positive && !comment) throw new Error('Please explain why you\'re giving negative reputation.');
+    const value = (positive ? 1 : -1) * repPower(u);
+    db.reps.push({ id: uid('rep'), postId, fromId: u.id, toId: p.authorId, value, comment, created: Date.now() });
+    const th = thread(p.threadId);
+    addAlert(p.authorId, u.id, 'rep', u.username + ' gave you ' + (value > 0 ? '+' : '') + value + ' reputation for your post in ' + th.title + (comment ? ': "' + comment + '"' : ''), '#/threads/' + th.id + '/post-' + p.id);
+    const author = user(p.authorId); if (author) checkTrophies(author);
+    commit();
+    return value;
+  }
+
+  function removeRep(u, repId) {
+    const r = (db.reps || []).find((x) => x.id === repId);
+    if (!r) return;
+    if (r.fromId !== u.id && !isStaff(u)) throw new Error('No permission.');
+    db.reps = db.reps.filter((x) => x.id !== repId);
+    commit();
+  }
+
   /* ---------- search ---------- */
 
-  function search({ q, type, member, forumId, titlesOnly, order }) {
+  function search({ q, type, member, forumId, titlesOnly, order, viewer }) {
     q = (q || '').trim().toLowerCase();
     const words = q.split(/\s+/).filter(Boolean);
     const match = (s) => words.every((w) => s.toLowerCase().includes(w));
@@ -785,7 +926,8 @@
     let results = [];
     if (!type || type === 'post' || type === 'thread') {
       db.threads.forEach((t) => {
-        if (forumId && t.forumId !== forumId) return;
+        if (forumId && !forumTree(forumId).includes(t.forumId)) return;
+        if (!canViewThread(t, viewer)) return;
         const ps = postsIn(t.id).filter((p) => !p.deleted);
         const titleHit = !words.length || match(t.title) || t.tags.some((tag) => words.includes(tag));
         if (type === 'thread' || titlesOnly) {
@@ -817,6 +959,8 @@
       load, save, commit, reset, exportJSON, importJSON, get db() { return db; }, onChange: (fn) => listeners.push(fn),
       currentUser, touch, register, login, loginAs, logout, changePassword,
       user, userByName, forum, thread, post, postsIn, threadsIn, lastPost, forumStats, userStats, isOnline, isStaff,
+      childForums, forumTree, forumPath, canViewForum, canViewThread, canViewPost,
+      repPower, repFor, repsForPost, repsGivenToday, repLevel, giveRep, removeRep, REP_DAILY_LIMIT, NEG_REP_MIN_POSTS,
       alertsFor, markAlertsRead, addAlert, safetyCheck,
       createThread, reply, editPost, deletePost, undeletePost, deleteThread, updateThread, react, votePoll,
       toggleBookmark, toggleWatch, toggleFollow, toggleIgnore, report, resolveReport, banUser, setRole, warnUser,

@@ -209,7 +209,7 @@
     el.className = 'user-tip';
     el.innerHTML = '<div class="user-tip-head">' + avatar(u, 'l') + '<div><div class="user-tip-name">' + username(u) + '</div><div class="muted">' + userTitle(u) + '</div>' +
       '<div class="small muted">Joined ' + window.PP.fullDate(u.joined) + ' · ' + (store.isOnline(u) ? '<span class="online-dot"></span> Online now' : 'Last seen ' + window.PP.timeAgo(u.lastSeen)) + '</div></div></div>' +
-      '<dl class="pairs pairs--row"><div><dt>Messages</dt><dd>' + window.PP.num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + window.PP.num(s.score) + '</dd></div><div><dt>Points</dt><dd>' + s.points + '</dd></div></dl>';
+      '<dl class="pairs pairs--row"><div><dt>Messages</dt><dd>' + window.PP.num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + window.PP.num(s.score) + '</dd></div><div><dt>Rep</dt><dd>' + window.PP.views.repBadge(s.rep) + '</dd></div><div><dt>Points</dt><dd>' + s.points + '</dd></div></dl>';
     document.body.appendChild(el);
     const r = a.getBoundingClientRect();
     el.style.top = (window.scrollY + r.bottom + 6) + 'px';
