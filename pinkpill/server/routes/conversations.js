@@ -9,6 +9,7 @@ const { assertSafeContent } = require('../lib/content');
 const { notify } = require('../lib/notify');
 const limits = require('../lib/limits');
 const T = require('../lib/threads');
+const { syncRefs } = require('../lib/attachments');
 
 const router = express.Router();
 router.use('/conversations', requireUser);
@@ -77,7 +78,8 @@ router.post('/conversations', limits.message, async (req, res) => {
     const conv = await q.one('INSERT INTO conversations (title, starter_id, allow_invite) VALUES ($1, $2, $3) RETURNING id, title', [d.title, req.user.id, !!d.allowInvite]);
     await q.query('INSERT INTO conversation_participants (conversation_id, user_id, last_read_at) VALUES ($1, $2, now())', [conv.id, req.user.id]);
     for (const r of recips) await q.query('INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [conv.id, r.id]);
-    await q.query('INSERT INTO conversation_messages (conversation_id, author_id, content) VALUES ($1, $2, $3)', [conv.id, req.user.id, d.content]);
+    const first = await q.one('INSERT INTO conversation_messages (conversation_id, author_id, content) VALUES ($1, $2, $3) RETURNING id', [conv.id, req.user.id, d.content]);
+    await syncRefs(q, 'message', first.id, d.content, req.user.id);
     for (const r of recips) await notify(q, { userId: r.id, actorId: req.user.id, type: 'conversation', text: `${req.user.username} started a conversation with you: ${conv.title}`, link: `#/conversations/${conv.id}` });
     return conv;
   });
@@ -113,6 +115,7 @@ router.post('/conversations/:id/messages', limits.message, async (req, res) => {
   const m = await db.tx(async (q) => {
     const msg = await q.one('INSERT INTO conversation_messages (conversation_id, author_id, content) VALUES ($1, $2, $3) RETURNING id, created_at', [c.id, req.user.id, d.content]);
     await q.query('UPDATE conversations SET last_message_at = $2 WHERE id = $1', [c.id, msg.created_at]);
+    await syncRefs(q, 'message', msg.id, d.content, req.user.id);
     // People who left rejoin when the conversation continues (as in the prototype).
     await q.query('UPDATE conversation_participants SET left_at = NULL WHERE conversation_id = $1', [c.id]);
     await q.query('UPDATE conversation_participants SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2', [c.id, req.user.id]);

@@ -53,7 +53,7 @@ test('imported data is sanitised: roles capped, images re-encoded, unsafe markup
   assert.equal((await db.one("SELECT count(*)::int AS n FROM posts WHERE content ILIKE '%javascript:%'")).n, 0);
   const av = await db.one("SELECT p.avatar_id FROM profiles p JOIN users u ON u.id = p.user_id WHERE u.username = 'Vivienne'");
   assert.ok(av.avatar_id);
-  const media = await guest.agent.get('/media/' + av.avatar_id);
+  const media = await guest.agent.get('/media/' + av.avatar_id).redirects(1);
   assert.equal(media.headers['content-type'], 'image/webp');
   // self-rep and out-of-range values were dropped
   assert.equal((await db.one('SELECT count(*)::int AS n FROM reputation WHERE giver_id = receiver_id OR abs(value) > 10')).n, 0);

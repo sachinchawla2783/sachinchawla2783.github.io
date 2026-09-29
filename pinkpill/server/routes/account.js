@@ -72,6 +72,10 @@ router.patch('/profile', async (req, res) => {
     sets.push(`${col} = $${vals.length}`);
   }
   if (sets.length) await db.query(`UPDATE profiles SET ${sets.join(', ')} WHERE user_id = $1`, vals);
+  if ('bio' in d || 'signature' in d) {
+    const pr = await db.one('SELECT bio, signature FROM profiles WHERE user_id = $1', [req.user.id]);
+    await require('../lib/attachments').syncRefs(db, 'profile', req.user.id, pr.bio + ' ' + pr.signature, req.user.id);
+  }
   res.json({ user: await mePayload(req.user) });
 });
 

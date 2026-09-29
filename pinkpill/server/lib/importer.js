@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const { processImage } = require('./images');
 const storage = require('./storage');
 const { normalizeTags } = require('./content');
+const { syncRefs } = require('./attachments');
 
 const REACTIONS = new Set(['like', 'love', 'glow', 'haha', 'wow', 'hug', 'sad']);
 const PREFIXES = new Set(['question', 'discussion', 'guide', 'routine', 'rateme', 'glowup', 'research', 'serious', 'vent']);
@@ -129,10 +130,12 @@ async function importLegacy(q, data, { maxRoleRank, actorId }) {
       const author = U(p.authorId);
       let rating = Number.isInteger(p.rating) && p.rating >= 1 && p.rating <= 10 && t.ratingEnabled && author && !raters.has(author) && author !== U(t.authorId) ? p.rating : null;
       if (rating) raters.add(author);
+      const postContent = await cleanContent(q, p.content, author, 20000);
       const pr = await q.one(`INSERT INTO posts (thread_id, author_id, content, rating, created_at, edited_at, edit_reason, deleted_at, delete_reason)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [row.id, author, await cleanContent(q, p.content, author, 20000), rating, date(p.created), p.edited ? date(p.edited) : null, str(p.editReason, 100), p.deleted ? date(p.created) : null, str(p.deleteReason, 100)]);
+      [row.id, author, postContent, rating, date(p.created), p.edited ? date(p.edited) : null, str(p.editReason, 100), p.deleted ? date(p.created) : null, str(p.deleteReason, 100)]);
       pid[str(p.id, 64)] = pr.id;
+      await syncRefs(q, 'post', pr.id, postContent, author);
       counts.posts++;
       for (const h of arr(p.history).slice(0, 50)) await q.query('INSERT INTO post_revisions (post_id, content, created_at) VALUES ($1, $2, $3)', [pr.id, await cleanContent(q, h.content, author, 20000), date(h.at)]);
       for (const [who, r] of Object.entries(obj(p.reactions))) {
@@ -187,7 +190,9 @@ async function importLegacy(q, data, { maxRoleRank, actorId }) {
   for (const pp of arr(data.profilePosts)) {
     const owner = U(pp.profileUserId); if (!owner) continue;
     const author = U(pp.authorId);
-    const row = await q.one('INSERT INTO profile_posts (profile_user_id, author_id, content, created_at) VALUES ($1, $2, $3, $4) RETURNING id', [owner, author, await cleanContent(q, pp.content, author, 2000), date(pp.created)]);
+    const ppContent = await cleanContent(q, pp.content, author, 2000);
+    const row = await q.one('INSERT INTO profile_posts (profile_user_id, author_id, content, created_at) VALUES ($1, $2, $3, $4) RETURNING id', [owner, author, ppContent, date(pp.created)]);
+    await syncRefs(q, 'profile_post', row.id, ppContent, author);
     for (const c of arr(pp.comments)) await q.query('INSERT INTO profile_post_comments (profile_post_id, author_id, content, created_at) VALUES ($1, $2, $3, $4)', [row.id, U(c.authorId), await cleanContent(q, c.content, U(c.authorId), 1000), date(c.created)]);
     for (const [who, r] of Object.entries(obj(pp.reactions))) { const w = U(who); if (w && w !== author && REACTIONS.has(r)) await q.query('INSERT INTO profile_post_reactions (profile_post_id, user_id, reaction) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [row.id, w, r]); }
     counts.profilePosts++;
@@ -203,7 +208,12 @@ async function importLegacy(q, data, { maxRoleRank, actorId }) {
       [str(c.title, 100) || 'Conversation', U(c.starterId), !!c.allowInvite, date(msgs[0].created), new Date(last)]);
     const left = new Set(arr(c.left).map(U)), starred = new Set(arr(c.starred).map(U));
     for (const p of parts) await q.query('INSERT INTO conversation_participants (conversation_id, user_id, starred, left_at, last_read_at) VALUES ($1, $2, $3, $4, $5)', [row.id, p, starred.has(p), left.has(p) ? new Date() : null, new Date(last)]);
-    for (const m of msgs.slice(0, 10000)) { await q.query('INSERT INTO conversation_messages (conversation_id, author_id, content, created_at) VALUES ($1, $2, $3, $4)', [row.id, U(m.authorId), await cleanContent(q, m.content, U(m.authorId), 20000), date(m.created)]); counts.messages++; }
+    for (const m of msgs.slice(0, 10000)) {
+      const mc = await cleanContent(q, m.content, U(m.authorId), 20000);
+      const mr = await q.one('INSERT INTO conversation_messages (conversation_id, author_id, content, created_at) VALUES ($1, $2, $3, $4) RETURNING id', [row.id, U(m.authorId), mc, date(m.created)]);
+      await syncRefs(q, 'message', mr.id, mc, U(m.authorId));
+      counts.messages++;
+    }
     counts.conversations++;
   }
 

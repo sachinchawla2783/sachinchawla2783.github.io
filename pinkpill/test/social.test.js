@@ -86,7 +86,9 @@ test('uploads: valid image is re-encoded to WebP and served safely', async () =>
   const r = await upload(alice, png, 'pic.png');
   assert.equal(r.status, 201, JSON.stringify(r.body));
   assert.match(r.body.url, /^\/media\/[0-9a-f-]{36}$/);
-  const m = await guest.agent.get(r.body.url);
+  // An upload that isn't embedded anywhere yet is visible only to its owner.
+  assert.equal((await guest.agent.get(r.body.url)).status, 404);
+  const m = await alice.agent.get(r.body.url).redirects(1);
   assert.equal(m.status, 200);
   assert.equal(m.headers['content-type'], 'image/webp');
   assert.equal(m.headers['x-content-type-options'], 'nosniff');

@@ -14,6 +14,7 @@ const { audit } = require('../lib/audit');
 const limits = require('../lib/limits');
 const settings = require('../lib/settings');
 const T = require('../lib/threads');
+const { syncRefs } = require('../lib/attachments');
 
 const router = express.Router();
 
@@ -213,6 +214,7 @@ router.post('/forums/:id/threads', limits.thread, async (req, res) => {
       [f.id, req.user.id, d.title, d.prefix || null, f.rating_enabled || !!d.ratingEnabled]);
     const p = await q.one('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3) RETURNING id', [t.id, req.user.id, d.content]);
     await q.query('UPDATE threads SET first_post_id = $2, last_post_id = $2 WHERE id = $1', [t.id, p.id]);
+    await syncRefs(q, 'post', p.id, d.content, req.user.id);
     for (const tag of tags) await q.query('INSERT INTO thread_tags (thread_id, tag) VALUES ($1, $2)', [t.id, tag]);
     if (d.poll) {
       const poll = await q.one(`INSERT INTO polls (thread_id, question, allow_multiple, closes_at)
@@ -475,6 +477,7 @@ router.post('/threads/:id/posts', limits.reply, async (req, res) => {
     }
     const p = await q.one('INSERT INTO posts (thread_id, author_id, content, rating) VALUES ($1, $2, $3, $4) RETURNING id, created_at', [t.id, me.id, d.content, d.rating ?? null]);
     await q.query('UPDATE threads SET reply_count = reply_count + 1, last_post_id = $2, last_post_at = $3 WHERE id = $1', [t.id, p.id, p.created_at]);
+    await syncRefs(q, 'post', p.id, d.content, me.id);
     const link = `#/threads/${t.id}/post-${p.id}`;
     const watchers = await q.many('SELECT user_id FROM thread_watches WHERE thread_id = $1 AND user_id <> $2', [t.id, me.id]);
     // Watchers only get notified if they can still see the thread (e.g. not after it moved to a private forum and they were logged out — members always can).

@@ -11,6 +11,7 @@ const { notify, notifyMentions } = require('../lib/notify');
 const { checkTrophies, TROPHIES, byId: trophyById } = require('../lib/trophies');
 const limits = require('../lib/limits');
 const T = require('../lib/threads');
+const { syncRefs, addRefs } = require('../lib/attachments');
 
 const router = express.Router();
 
@@ -304,6 +305,7 @@ router.post('/members/:id/profile-posts', limits.write, async (req, res) => {
   if (m.status === 'deleted' || !p || !(await allowedBy(p.allow_profile_posts, req.user, m.id))) throw forbidden('You can\'t post on this profile.');
   const row = await db.tx(async (q) => {
     const r = await q.one('INSERT INTO profile_posts (profile_user_id, author_id, content) VALUES ($1, $2, $3) RETURNING id', [m.id, req.user.id, d.content]);
+    await syncRefs(q, 'profile_post', r.id, d.content, req.user.id);
     await notify(q, { userId: m.id, actorId: req.user.id, type: 'profile-post', text: `${req.user.username} wrote on your profile.`, link: `#/members/${m.id}` });
     await notifyMentions(q, { content: d.content, actor: req.user, link: `#/members/${m.id}`, where: 'a profile post', excludeIds: [String(m.id)] });
     return r;
@@ -326,6 +328,7 @@ router.post('/profile-posts/:id/comments', limits.write, async (req, res) => {
   if (ign) throw forbidden('You can\'t comment here.');
   await db.tx(async (q) => {
     await q.query('INSERT INTO profile_post_comments (profile_post_id, author_id, content) VALUES ($1, $2, $3)', [pp.id, req.user.id, d.content]);
+    await addRefs(q, 'profile_post', pp.id, d.content, req.user.id);
     const link = `#/members/${pp.profile_user_id}`;
     await notify(q, { userId: pp.author_id, actorId: req.user.id, type: 'profile-comment', text: `${req.user.username} commented on your profile post.`, link });
     if (String(pp.profile_user_id) !== String(pp.author_id)) await notify(q, { userId: pp.profile_user_id, actorId: req.user.id, type: 'profile-comment', text: `${req.user.username} commented on a post on your profile.`, link });
