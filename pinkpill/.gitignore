@@ -4,3 +4,6 @@ storage/
 test-results/
 playwright-report/
 *.log
+backups/
+*.dump
+*.dump.enc
