@@ -12,6 +12,14 @@ async function send({ to, subject, text }) {
     await transporter.sendMail(msg);
     return;
   }
+  if (config.mail.transport === 'file') {
+    // Development/E2E only: one text file per email in MAIL_DIR.
+    if (config.isProd) throw new Error('The file mail transport is not allowed in production.');
+    const fs = require('node:fs'), path = require('node:path');
+    fs.mkdirSync(config.mail.dir, { recursive: true });
+    fs.writeFileSync(path.join(config.mail.dir, Date.now() + '-' + Math.random().toString(36).slice(2) + '.txt'), `To: ${to}\nSubject: ${subject}\n\n${text}`);
+    return;
+  }
   outbox.push(Object.assign({ sentAt: new Date() }, msg));
   if (outbox.length > 100) outbox.shift();
   if (config.mail.transport === 'console') console.log(`\n[mail] To: ${to}\n[mail] Subject: ${subject}\n${text}\n`);

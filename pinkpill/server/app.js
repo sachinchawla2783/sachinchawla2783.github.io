@@ -7,6 +7,7 @@ const config = require('./config');
 const { loadSession, csrf } = require('./lib/session');
 const { HttpError, notFound } = require('./lib/errors');
 const limits = require('./lib/limits');
+const { can } = require('./lib/permissions');
 
 function createApp() {
   const app = express();
@@ -36,9 +37,20 @@ function createApp() {
   }));
 
   app.use('/api', limits.api);
-  app.use(express.json({ limit: '100kb', strict: true }));
   app.use(cookieParser());
   app.use(loadSession);
+  // Small JSON bodies everywhere; the admin import alone accepts large files, and only after the
+  // session has been resolved and the admin.import permission checked (so anonymous users can't
+  // make the server buffer big bodies).
+  const smallJson = express.json({ limit: '100kb', strict: true });
+  const largeJson = express.json({ limit: '25mb', strict: true });
+  app.use((req, res, next) => {
+    if (req.path === '/api/admin/import' && req.method === 'POST') {
+      if (!can(req.user, 'admin.import')) return next(new HttpError(req.user ? 403 : 401, req.user ? 'forbidden' : 'unauthorized', req.user ? 'You do not have permission to do that.' : 'You must be logged in to do that.'));
+      return largeJson(req, res, next);
+    }
+    return smallJson(req, res, next);
+  });
   app.use('/api', csrf);
 
   app.use('/api/auth', require('./routes/auth'));

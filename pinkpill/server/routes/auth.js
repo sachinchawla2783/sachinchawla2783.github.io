@@ -141,7 +141,9 @@ router.post('/password-reset/confirm', limits.email, async (req, res) => {
     const row = await q.one(`UPDATE password_resets SET used_at = now()
       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now() RETURNING user_id`, [sha256(d.token)]);
     if (!row) return null;
-    await q.query('UPDATE users SET password_hash = $2, failed_logins = 0, locked_until = NULL, updated_at = now() WHERE id = $1', [row.user_id, hash]);
+    // Completing a reset proves control of the email address, so it also verifies it.
+    await q.query(`UPDATE users SET password_hash = $2, failed_logins = 0, locked_until = NULL, updated_at = now(),
+      status = CASE WHEN status = 'unverified' THEN 'active' ELSE status END, email_verified_at = coalesce(email_verified_at, now()) WHERE id = $1`, [row.user_id, hash]);
     await q.query('UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [row.user_id]);
     return row.user_id;
   });

@@ -244,6 +244,22 @@ router.patch('/settings', async (req, res) => {
   res.json({ settings: await settings.all() });
 });
 
+/* ---------- import from the localStorage prototype ---------- */
+
+router.post('/import', async (req, res) => {
+  assertCan(req.user, 'admin.import');
+  const { importLegacy } = require('../lib/importer');
+  let result;
+  try {
+    result = await db.tx(async (q) => {
+      const r = await importLegacy(q, req.body, { maxRoleRank: req.user.rank, actorId: req.user.id });
+      await audit(q, req, 'data.import', 'import', null, { imported: r.imported, skipped: r.skipped.length });
+      return r;
+    });
+  } catch (e) { if (e.status === 422) throw invalid(e.message); throw e; }
+  res.json(result);
+});
+
 /* Public, non-sensitive settings for the frontend. */
 router.get('/public-settings', async (req, res) => {
   const s = await settings.all();

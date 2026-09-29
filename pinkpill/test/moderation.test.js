@@ -75,6 +75,11 @@ test('safety filter auto-reports dangerous content and returns crisis flags', as
   assert.equal(auto.reporter_id, null);
   const c = await alice.post(`/api/threads/${r.body.thread.id}/posts`, { content: 'honestly I want to die' });
   assert.ok(c.body.safety.crisis.length > 0);
+  // Ordinary skincare vocabulary is not flagged.
+  const ok = await alice.post('/api/forums/f-skin/threads', { title: 'Retinol purging timeline', content: 'How long did your purging phase last?' });
+  assert.deepEqual(ok.body.safety.danger, []);
+  const ed = await alice.post(`/api/threads/${ok.body.thread.id}/posts`, { content: 'I make myself throw up after meals' });
+  assert.ok(ed.body.safety.danger.length > 0);
 });
 
 test('ban: banned user keeps read access but cannot write; lifted bans restore access', async () => {

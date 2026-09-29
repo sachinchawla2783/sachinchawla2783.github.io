@@ -2,7 +2,7 @@
   "name": "pinkpill",
   "version": "1.0.0",
   "private": true,
-  "description": "PinkPill — a multi-user looksmaxxing forum for women",
+  "description": "PinkPill \u2014 a multi-user looksmaxxing forum for women",
   "type": "commonjs",
   "engines": {
     "node": ">=22"
@@ -17,7 +17,8 @@
     "import:localstorage": "node server/scripts/import-localstorage.js",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",
     "test:e2e": "playwright test",
-    "build": "node server/scripts/check-build.js"
+    "build": "node server/scripts/check-build.js",
+    "test:all": "npm test && npm run test:e2e"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1142.0",

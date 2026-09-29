@@ -25,9 +25,10 @@ const config = {
   sessionDays: int(env.SESSION_DAYS, 30),
   requireEmailVerification: bool(env.REQUIRE_EMAIL_VERIFICATION, isProd),
   mail: {
-    transport: env.MAIL_TRANSPORT || (isTest ? 'memory' : 'console'),   // console | smtp | memory
+    transport: env.MAIL_TRANSPORT || (isTest ? 'memory' : 'console'),   // console | smtp | memory | file (dev)
     from: env.MAIL_FROM || 'PinkPill <no-reply@localhost>',
     smtpUrl: env.SMTP_URL || '',
+    dir: path.resolve(env.MAIL_DIR || path.join(__dirname, '..', 'storage', 'mail')),
   },
   storage: {
     driver: env.STORAGE_DRIVER || 'local',                               // local | s3
@@ -46,7 +47,16 @@ if (!config.databaseUrl) {
   throw new Error('DATABASE_URL is not set. Copy .env.example to .env and configure it.');
 }
 if (isProd && !config.appUrl.startsWith('https://')) {
-  console.warn('[config] APP_URL should use https:// in production.');
+  console.warn('[config] WARNING: APP_URL should use https:// in production.');
+}
+if (isProd && !config.cookieSecure) {
+  console.warn('[config] WARNING: COOKIE_SECURE is off in production; session cookies can leak over plain HTTP.');
+}
+if (isProd && !config.requireEmailVerification) {
+  console.warn('[config] WARNING: REQUIRE_EMAIL_VERIFICATION is off in production.');
+}
+if (isProd && ['console', 'memory', 'file'].includes(config.mail.transport)) {
+  console.warn('[config] WARNING: MAIL_TRANSPORT is "' + config.mail.transport + '" in production; verification and reset emails will not be delivered.');
 }
 
 module.exports = config;
