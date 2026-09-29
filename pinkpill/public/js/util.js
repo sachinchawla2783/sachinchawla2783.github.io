@@ -4,7 +4,10 @@
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  const ms = (ts) => (typeof ts === 'number' ? ts : new Date(ts).getTime());
+
   function timeAgo(ts) {
+    ts = ms(ts);
     const d = Date.now() - ts;
     const s = Math.floor(d / 1000);
     if (s < 60) return 'A moment ago';
@@ -18,15 +21,15 @@
     return fullDate(ts);
   }
 
-  const fullDate = (ts) => new Date(ts).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
-  const dateTime = (ts) => new Date(ts).toLocaleString();
-  const time = (ts) => '<time title="' + esc(dateTime(ts)) + '" datetime="' + new Date(ts).toISOString() + '">' + esc(timeAgo(ts)) + '</time>';
+  const fullDate = (ts) => new Date(ms(ts)).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  const dateTime = (ts) => new Date(ms(ts)).toLocaleString();
+  const time = (ts) => (ts ? '<time title="' + esc(dateTime(ts)) + '" datetime="' + new Date(ms(ts)).toISOString() + '">' + esc(timeAgo(ts)) + '</time>' : '');
   const num = (n) => Number(n || 0).toLocaleString();
 
   function safeUrl(u) {
     u = String(u || '').trim();
-    if (/^(https?:|mailto:|#\/)/i.test(u)) return u;
-    if (/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/i.test(u)) return u;
+    if (/^(https?:\/\/|mailto:|#\/)/i.test(u)) return u;
+    if (/^\/media\/[0-9a-f-]{36}$/.test(u)) return u;
     return null;
   }
 
@@ -50,7 +53,9 @@
     });
     const media = (u) => {
       const m = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
-      return m ? '<div class="bb-media"><iframe src="https://www.youtube-nocookie.com/embed/' + m[1] + '" allowfullscreen loading="lazy" title="Video"></iframe></div>' : '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a>';
+      if (m) return '<div class="bb-media"><iframe src="https://www.youtube-nocookie.com/embed/' + m[1] + '" allowfullscreen loading="lazy" title="Video"></iframe></div>';
+      const url = safeUrl(u);
+      return url && url[0] !== '#' ? '<a href="' + esc(url) + '" target="_blank" rel="noopener nofollow ugc">' + esc(url) + '</a>' : esc(u);
     };
     s = s.replace(/\[media\]([\s\S]*?)\[\/media\]/gi, (_, u) => media(u.replace(/&amp;/g, '&')));
     const simple = { b: 'strong', i: 'em', u: 'u', s: 's' };
@@ -75,10 +80,7 @@
     }
     // auto-link bare URLs not already inside tags
     s = s.replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g, (_, pre, u) => pre + '<a href="' + u + '" target="_blank" rel="noopener nofollow ugc">' + u + '</a>');
-    s = s.replace(/(^|[\s>])@([A-Za-z0-9_.\-]{3,24})/g, (m, pre, name) => {
-      const u = window.PP.store.userByName(name);
-      return u ? pre + '<a class="mention" href="#/members/' + u.id + '">@' + esc(u.username) + '</a>' : m;
-    });
+    s = s.replace(/(^|[\s>])@([A-Za-z0-9_.\-]{3,24})/g, (m, pre, name) => pre + '<a class="mention" href="#/members/@' + name + '">@' + name + '</a>');
     s = s.replace(/\n/g, '<br>');
     s = s.replace(/(<\/(?:blockquote|div|ul|li|details|summary|pre)>)<br>/g, '$1').replace(/<br>(<(?:ul|li|\/ul))/g, '$1');
     s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[i]);
@@ -88,28 +90,7 @@
   const stripBB = (s) => String(s || '').replace(/\[quote[^\]]*\][\s\S]*?\[\/quote\]/gi, '').replace(/\[img\][\s\S]*?\[\/img\]/gi, '[image]').replace(/\[\/?[a-z*]+(?:=[^\]]*)?\]/gi, '').trim();
   const snippet = (s, n) => { const t = stripBB(s); return t.length > (n || 140) ? t.slice(0, n || 140) + '…' : t; };
 
-  /* Shrink an image file to a JPEG data URL so it fits in localStorage. */
-  function readImage(file, max, quality) {
-    return new Promise((resolve, reject) => {
-      if (!file || !/^image\//.test(file.type)) return reject(new Error('Please choose an image file.'));
-      const fr = new FileReader();
-      fr.onerror = () => reject(new Error('Could not read file.'));
-      fr.onload = () => {
-        const img = new Image();
-        img.onerror = () => reject(new Error('Could not load image.'));
-        img.onload = () => {
-          const scale = Math.min(1, (max || 800) / Math.max(img.width, img.height));
-          const c = document.createElement('canvas');
-          c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
-          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-          resolve(c.toDataURL('image/jpeg', quality || 0.8));
-        };
-        img.src = fr.result;
-      };
-      fr.readAsDataURL(file);
-    });
-  }
 
   window.PP = window.PP || {};
-  Object.assign(window.PP, { esc, timeAgo, fullDate, dateTime, time, num, bbcode, stripBB, snippet, readImage, safeUrl });
+  Object.assign(window.PP, { esc, timeAgo, fullDate, dateTime, time, num, bbcode, stripBB, snippet, safeUrl, ms });
 })();

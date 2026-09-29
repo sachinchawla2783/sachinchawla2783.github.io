@@ -514,3 +514,12 @@ section.block > .table { margin: 0; }
 .rep-choice label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
 .rep-summary { display: flex; gap: 12px; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .rep-summary > .rep { font-size: 1.3rem; padding: 2px 14px; }
+
+/* ---------- API integration ---------- */
+#app.is-loading { opacity: .55; transition: opacity .15s; pointer-events: none; }
+#app.is-loading::before { content: ""; position: fixed; top: 0; left: 0; height: 3px; width: 100%; background: linear-gradient(90deg, transparent, var(--pink), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: pp-load 1s linear infinite; z-index: 100; }
+@keyframes pp-load { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+.hp { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 12px; }
+.perm-grid .form-actions { grid-column: 1 / -1; }
+.perm-grid .check { margin: 4px 0; font-size: .85rem; }

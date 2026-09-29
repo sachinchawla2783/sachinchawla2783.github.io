@@ -3,17 +3,19 @@
   'use strict';
   const { esc, store } = window.PP;
 
+  const safeColor = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? c : '#ec4899');
+
   function avatar(u, size) {
     size = size || 'm';
-    if (!u) return '<span class="avatar avatar-' + size + '" style="background:#999">?</span>';
+    if (!u || u.deleted) return '<span class="avatar avatar-' + size + '" style="background:#999">?</span>';
     const link = '#/members/' + u.id;
-    if (u.avatar) return '<a href="' + link + '" class="avatar avatar-' + size + '" title="' + esc(u.username) + '"><img src="' + esc(u.avatar) + '" alt="' + esc(u.username) + '"></a>';
-    return '<a href="' + link + '" class="avatar avatar-' + size + '" style="background:' + esc(u.color) + '" title="' + esc(u.username) + '">' + esc(u.username[0].toUpperCase()) + '</a>';
+    if (u.avatarUrl && window.PP.safeUrl(u.avatarUrl)) return '<a href="' + link + '" class="avatar avatar-' + size + '" title="' + esc(u.username) + '"><img src="' + esc(u.avatarUrl) + '" alt="' + esc(u.username) + '"></a>';
+    return '<a href="' + link + '" class="avatar avatar-' + size + '" style="background:' + safeColor(u.color) + '" title="' + esc(u.username) + '">' + esc(u.username[0].toUpperCase()) + '</a>';
   }
 
   function username(u, cls) {
-    if (!u) return '<span class="username">Deleted member</span>';
-    const role = u.role === 'admin' ? ' username--admin' : u.role === 'mod' ? ' username--mod' : '';
+    if (!u || u.deleted) return '<span class="username">Deleted member</span>';
+    const role = u.role === 'admin' || u.role === 'super_admin' ? ' username--admin' : u.role === 'moderator' ? ' username--mod' : '';
     return '<a href="#/members/' + u.id + '" class="username' + role + (u.banned ? ' username--banned' : '') + ' ' + (cls || '') + '" data-user-tip="' + u.id + '">' + esc(u.username) + '</a>';
   }
 
@@ -21,13 +23,13 @@
     if (!u) return '';
     if (u.banned) return 'Banned';
     if (u.customTitle) return esc(u.customTitle);
-    return store.userStats(u).rank;
+    return esc(u.rank || '');
   }
 
   function roleBanner(u) {
     if (!u) return '';
-    if (u.role === 'admin') return '<div class="role-banner role-banner--admin">Administrator</div>';
-    if (u.role === 'mod') return '<div class="role-banner role-banner--mod">Moderator</div>';
+    if (u.role === 'admin' || u.role === 'super_admin') return '<div class="role-banner role-banner--admin">Administrator</div>';
+    if (u.role === 'moderator') return '<div class="role-banner role-banner--mod">Moderator</div>';
     return '';
   }
 
@@ -130,7 +132,11 @@
       file.addEventListener('change', async () => {
         const f = file.files[0]; file.value = '';
         if (!f) return;
-        try { insertAt(ta, '[img]' + (await window.PP.readImage(f, 900, 0.78)) + '[/img]\n'); } catch (err) { toast(err.message, 'error'); }
+        try {
+          toast('Uploading image…');
+          const r = await window.PP.api.upload(f, 'post');
+          insertAt(ta, '[img]' + r.url + '[/img]\n');
+        } catch (err) { toast(err.message, 'error'); }
       });
     });
   }
@@ -203,18 +209,18 @@
   function hideTip() { document.querySelectorAll('.user-tip').forEach((t) => t.remove()); }
   function showTip(a) {
     hideTip();
-    const u = store.user(a.dataset.userTip); if (!u) return;
-    const s = store.userStats(u);
+    const u = store.user(a.dataset.userTip); if (!u || u.deleted) return;
+    const s = u.stats || { posts: 0, reactionScore: 0, rep: 0, points: 0 };
     const el = document.createElement('div');
     el.className = 'user-tip';
     el.innerHTML = '<div class="user-tip-head">' + avatar(u, 'l') + '<div><div class="user-tip-name">' + username(u) + '</div><div class="muted">' + userTitle(u) + '</div>' +
-      '<div class="small muted">Joined ' + window.PP.fullDate(u.joined) + ' · ' + (store.isOnline(u) ? '<span class="online-dot"></span> Online now' : 'Last seen ' + window.PP.timeAgo(u.lastSeen)) + '</div></div></div>' +
-      '<dl class="pairs pairs--row"><div><dt>Messages</dt><dd>' + window.PP.num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + window.PP.num(s.score) + '</dd></div><div><dt>Rep</dt><dd>' + window.PP.views.repBadge(s.rep) + '</dd></div><div><dt>Points</dt><dd>' + s.points + '</dd></div></dl>';
+      '<div class="small muted">Joined ' + window.PP.fullDate(u.joinedAt) + (u.online ? ' · <span class="online-dot"></span> Online now' : u.lastSeenAt ? ' · Last seen ' + window.PP.timeAgo(u.lastSeenAt) : '') + '</div></div></div>' +
+      '<dl class="pairs pairs--row"><div><dt>Messages</dt><dd>' + window.PP.num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + window.PP.num(s.reactionScore) + '</dd></div><div><dt>Rep</dt><dd>' + window.PP.views.repBadge(s.rep) + '</dd></div><div><dt>Points</dt><dd>' + s.points + '</dd></div></dl>';
     document.body.appendChild(el);
     const r = a.getBoundingClientRect();
     el.style.top = (window.scrollY + r.bottom + 6) + 'px';
     el.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - el.offsetWidth - 8)) + 'px';
   }
 
-  window.PP.ui = { avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, handleSafety, bindUserTips, insertAt };
+  window.PP.ui = { safeColor, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, handleSafety, bindUserTips, insertAt };
 })();
