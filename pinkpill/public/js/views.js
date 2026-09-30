@@ -726,7 +726,7 @@
       rules: '<ol class="rules">' +
         '<li><b>18+ only.</b> You must be an adult to join. Never post images of minors.</li>' +
         '<li><b>Be kind.</b> No bullying, harassment, slurs, body-shaming, or "it\'s over"/doomer posting at other members. Critique features constructively and only in opt-in threads.</li>' +
-        '<li><b>No dangerous practices.</b> Pro-ED/thinspo/meanspo content, crash/dry-fasting advice, purging, bonesmashing, DIY injections (filler, botox), black-market drugs, skin-lightening with mercury/steroids are banned. Posts mentioning these are automatically flagged for moderators.</li>' +
+        '<li><b>No dangerous practices.</b> Bonesmashing, DIY injections (filler, botox), black-market drugs and skin-lightening with mercury/steroids are banned. Posts mentioning bonesmashing, DIY injections or mercury/bleaching creams are automatically flagged for moderators. Eating and diet topics are not automatically flagged; use Report if a post breaks the rules.</li>' +
         '<li><b>Medical claims need care.</b> Share experiences, cite sources, and recommend licensed professionals. No selling or promoting unregulated products.</li>' +
         '<li><b>Consent.</b> Only post photos of yourself. No rating celebrities\' or strangers\' photos, no screenshots of private people.</li>' +
         '<li><b>No hate.</b> No misogyny, misandry, racism, homophobia, transphobia or ideology wars.</li>' +

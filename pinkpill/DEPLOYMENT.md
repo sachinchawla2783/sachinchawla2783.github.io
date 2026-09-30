@@ -545,8 +545,9 @@ own copies, **never in Git** (`backups/`, `*.dump`, `*.dump.enc` are git-ignored
   "Deleted member").
 
 ## 18. Content moderation policy status
-The automatic safety flagger (`server/lib/safety.js`) currently auto-reports posts containing a fixed list
-of terms, including eating-disorder terms such as "pro-ana" and "thinspo", to the moderator queue, and
-shows support resources for crisis language. It never blocks or removes posts. The rules page describes
-this behaviour accurately. A requested change to stop auto-flagging eating-disorder terminology **has not
-been applied** in this repository.
+The automatic safety flagger (`server/lib/safety.js`) auto-reports posts that mention physically
+dangerous DIY practices (bonesmashing, DIY filler/botox/injections, mercury or bleaching creams) to the
+moderator queue, and shows support resources for crisis language (self-harm, suicide). It never blocks
+or removes posts. **Eating and diet topics are not automatically flagged** (site policy). Members can
+still report any post, and moderators, bans and the audit log work as before. The rules page describes
+this behaviour.

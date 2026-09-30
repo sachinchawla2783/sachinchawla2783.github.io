@@ -78,8 +78,15 @@ test('safety filter auto-reports dangerous content and returns crisis flags', as
   // Ordinary skincare vocabulary is not flagged.
   const ok = await alice.post('/api/forums/f-skin/threads', { title: 'Retinol purging timeline', content: 'How long did your purging phase last?' });
   assert.deepEqual(ok.body.safety.danger, []);
-  const ed = await alice.post(`/api/threads/${ok.body.thread.id}/posts`, { content: 'I make myself throw up after meals' });
-  assert.ok(ed.body.safety.danger.length > 0);
+  // Eating/diet topics are not auto-flagged or auto-reported (site policy); members can still report them.
+  for (const text of ['I make myself throw up after meals', 'pro-ana thinspo meanspo', 'dry fast and laxative experiences', 'purging after eating']) {
+    const ed = await alice.post(`/api/threads/${ok.body.thread.id}/posts`, { content: text });
+    assert.equal(ed.status, 201);
+    assert.deepEqual(ed.body.safety.danger, [], text);
+    assert.equal(await db.one("SELECT 1 FROM reports WHERE content_type = 'post' AND content_id = $1", [ed.body.post.id]), null, 'no automatic report: ' + text);
+  }
+  const manual = await bob.post('/api/reports', { type: 'post', id: ok.body.postId, reason: 'Member report still works' });
+  assert.equal(manual.status, 201);
 });
 
 test('ban: banned user keeps read access but cannot write; lifted bans restore access', async () => {

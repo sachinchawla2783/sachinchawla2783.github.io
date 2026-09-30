@@ -276,7 +276,7 @@
     report(el) {
       if (!need()) return;
       modal('Report content', '<form data-form="report" data-kind="' + el.dataset.kind + '" data-id="' + el.dataset.id + '"><p class="small muted">Reports are sent to moderators. Please explain what rule this breaks.</p>' +
-        '<label class="field"><span>Reason</span><select name="preset"><option value="">Choose…</option><option>Bullying or harassment</option><option>Dangerous practice (pro-ED, DIY procedures, etc.)</option><option>Self-harm / someone at risk</option><option>Spam</option><option>Photo of someone else / minor</option><option>Hate speech</option><option>Other</option></select></label>' +
+        '<label class="field"><span>Reason</span><select name="preset"><option value="">Choose…</option><option>Bullying or harassment</option><option>Dangerous practice (DIY procedures, etc.)</option><option>Self-harm / someone at risk</option><option>Spam</option><option>Photo of someone else / minor</option><option>Hate speech</option><option>Other</option></select></label>' +
         '<label class="field"><span>Details</span><textarea name="reason" rows="3" maxlength="400"></textarea></label><div class="form-actions"><button class="btn btn-primary">Report</button> <button type="button" class="btn" data-close>Cancel</button></div></form>');
     },
     async bookmark(el) {

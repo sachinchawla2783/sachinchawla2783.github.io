@@ -82,7 +82,7 @@ test.describe('VIP', () => {
     await expect(page).toHaveURL(/#\/vip$/);
     await expect(page.locator('.vip-card')).toHaveCount(5);
     await expect(page.locator('.vip-card[data-product="lifetime-vip-plus"]')).toContainText('$108.00');
-    await expect(page.locator('.vip-card[data-product="lifetime-vip-plus"]')).toContainText('Lifetime means the lifetime of the forum.');
+    await expect(page.locator('main')).not.toContainText('Lifetime means the lifetime of the forum');
     await expect(page.locator('.vip-card[data-product="lifetime-vip-plus-custom"]')).toContainText('This package includes a custom username color of your choice.');
     await ctx.close();
   });

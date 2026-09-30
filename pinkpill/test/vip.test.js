@@ -141,7 +141,7 @@ test('catalog comes from the database with the specified initial prices; unconfi
   const price = Object.fromEntries(r.body.products.map((p) => [p.slug, p.priceCents]));
   assert.deepEqual(price, { vip: 800, 'vip-plus': 1700, 'lifetime-vip': 8200, 'lifetime-vip-plus': 10800, 'lifetime-vip-plus-custom': 20800 });
   const lv = r.body.products.find((p) => p.slug === 'lifetime-vip-plus');
-  assert.ok(lv.notes.includes('Lifetime means the lifetime of the forum.'));
+  assert.ok(!r.body.products.some((p) => p.notes.includes('Lifetime means the lifetime of the forum.') || /lifetime of the forum/i.test(p.description)), 'disclaimer removed');
   assert.ok(!r.body.products.some((p) => p.benefits.some((b) => /^ncludes|^\s*$/.test(b))), 'spec typos and empty bullets are cleaned up');
   assert.equal(r.body.products.find((p) => p.slug === 'lifetime-vip').requiresAvatarFrame, false);
   assert.ok(r.body.paymentMethods.every((m) => m.available), 'all stubbed providers + wallet are configured in this test');
