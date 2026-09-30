@@ -723,26 +723,27 @@
     const bbExamples = ['[b]Bold[/b]', '[i]Italic[/i]', '[u]Underline[/u]', '[s]Strike[/s]', '[color=#ec4899]Pink text[/color]', '[size=5]Big text[/size]', '[url=https://example.com]Link[/url]', '[media]https://youtu.be/dQw4w9WgXcQ[/media]', '[quote=Aurora]Quoted text[/quote]', '[spoiler]Hidden text[/spoiler]', '[code]code block[/code]', '[list]\n[*]One\n[*]Two\n[/list]', '[center]Centered[/center]', '@Aurora (mention)'];
     const map = {
       index: '<div class="help-grid">' + pages.map(([k, l]) => '<a class="block help-card" href="#/help/' + k + '"><b>' + l + '</b></a>').join('') + '</div>',
-      rules: '<p><b>You may not:</b></p><ol class="rules">' +
-        '<li><b>Post low-effort content.</b><ul><li>Only allowed in the Off-Topic section.</li><li>Not allowed in threads tagged as “Serious.”</li></ul></li>' +
-        '<li><b>Necropost.</b><ul><li>Avoid replying to threads older than 1 month unless you have a good reason.</li><li>“Bumps,” one-liners, quoting, or simple agreement are not valid reasons.</li></ul></li>' +
-        '<li><b>Post illegal content or incite illegal activity.</b><ul><li>If you\'re unsure whether something is allowed, don’t post it.</li></ul></li>' +
-        '<li><b>Sexualize minors.</b><ul><li>Any individual under the age of 18.</li></ul></li>' +
-        '<li><b>Create more than one account or share your account.</b><ul><li>All accounts will be banned.</li></ul></li>' +
-        '<li><b>Post on behalf of banned users.</b></li>' +
-        '<li><b>Post gore and shock material.</b></li>' +
-        '<li><b>Post scat and shit.</b></li>' +
-        '<li><b>Repfarm.</b><ul><li>Do not manipulate the reputation system for gain.</li></ul></li>' +
-        '<li><b>Exist solely to troll or intentionally disrupt the forum.</b><ul><li>While exaggerated personas may be tolerated, accounts whose primary or only intent is to antagonize others, incite conflict, or undermine the forum’s integrity will face permanent removal.</li></ul></li>' +
-        '<li><b>Post private content.</b><ul><li>This includes private messages, user info, or images.</li></ul></li>' +
-        '<li><b>Post private surgery results.</b><ul><li>This will result in a permanent ban whether intentional or not.</li></ul></li>' +
-        '<li><b>Dox or threaten to dox.</b><ul><li>This applies to anyone, even those outside the community.</li></ul></li>' +
-        '<li><b>Mass-tag users.</b></li>' +
-        '<li><b>Spam.</b><ul><li>Includes AI-generated content or repetitive posting.</li></ul></li>' +
-        '<li><b>Use bots, scripts, or automation to post or manipulate reputation.</b></li>' +
-        '<li><b>Impersonate users.</b><ul><li>Includes using someone else’s current or old username.</li></ul></li>' +
-        '<li><b>Spread misinformation.</b></li>' +
-        '<li><b>Advertise without staff permission.</b></li></ol>',
+      rules: '<ol class="rules">' +
+        '<li><b>Keep low-effort posts in Off-Topic.</b><ul><li>Short, throwaway posts belong in the Off-Topic section only.</li><li>They\'re never okay in threads marked “Serious.”</li></ul></li>' +
+        '<li><b>Don\'t revive dead threads.</b><ul><li>Leave threads older than a month alone unless you\'re adding something real.</li><li>Bumping, one-word replies, quotes or “this” don\'t count.</li></ul></li>' +
+        '<li><b>Nothing illegal.</b><ul><li>Don\'t post illegal content or encourage anyone to break the law.</li><li>When in doubt, leave it out.</li></ul></li>' +
+        '<li><b>Never sexualize minors.</b><ul><li>Anyone under 18 is off-limits, full stop.</li></ul></li>' +
+        '<li><b>One account per person, and it\'s yours alone.</b><ul><li>Duplicate or shared accounts get every linked account banned.</li></ul></li>' +
+        '<li><b>Don\'t post for banned members.</b></li>' +
+        '<li><b>No gore or shock content.</b></li>' +
+        '<li><b>No scat content.</b></li>' +
+        '<li><b>No repfarming.</b><ul><li>Don\'t game the reputation system to boost yourself or others.</li></ul></li>' +
+        '<li><b>Don\'t be here just to troll.</b><ul><li>Over-the-top personas are fine, but accounts that mainly exist to provoke, start fights or damage the forum will be removed permanently.</li></ul></li>' +
+        '<li><b>Keep private things private.</b><ul><li>Don\'t share private messages, personal information or private images.</li></ul></li>' +
+        '<li><b>Don\'t share private surgery results.</b><ul><li>This is a permanent ban, even if it was an accident.</li></ul></li>' +
+        '<li><b>No doxxing or threats to dox.</b><ul><li>This covers everyone, including people outside the forum.</li></ul></li>' +
+        '<li><b>Don\'t mass-tag members.</b></li>' +
+        '<li><b>No spam.</b><ul><li>Don\'t flood the forum with repetitive posts.</li></ul></li>' +
+        '<li><b>Write in your own words.</b><ul><li>AI-generated posts aren\'t banned, but they\'re discouraged. People come here to hear from real members.</li></ul></li>' +
+        '<li><b>No bots or automation.</b><ul><li>Don\'t use scripts or bots to post or to move reputation.</li></ul></li>' +
+        '<li><b>Don\'t impersonate other members.</b><ul><li>That includes using someone\'s current or past username.</li></ul></li>' +
+        '<li><b>Don\'t spread misinformation.</b></li>' +
+        '<li><b>No advertising without staff approval.</b></li></ol>',
       faq: '<dl class="faq"><dt>What is PinkPill?</dt><dd>A looksmaxxing (appearance-improvement) community for women focused on evidence-based, safe and kind self-improvement.</dd>' +
         '<dt>How do alerts work?</dt><dd>You receive alerts when someone replies to a thread you watch, mentions you with @name, quotes you, reacts to your content, gives you reputation, follows you, writes on your profile, or starts a conversation with you.</dd>' +
         '<dt>How do I get a rating?</dt><dd>Post in <a href="#/forums/f-rating">Rating</a> (or its members-only Private Ratings sub-forum), or tick "Enable community ratings" when creating a thread. Each member can rate once (1–10) alongside constructive feedback.</dd>' +
