@@ -92,6 +92,8 @@ const config = {
       apiUrl: (env.COINBASE_COMMERCE_API_URL || 'https://api.commerce.coinbase.com').replace(/\/+$/, ''),
     },
   },
+  // Header with the visitor's country code, set by a proxy you trust (e.g. cf-ipcountry behind Cloudflare).
+  geoCountryHeader: (env.GEO_COUNTRY_HEADER || '').toLowerCase(),
   rateLimits: { enabled: bool(env.RATE_LIMITS, true) },
   corsOrigins: (env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
 };

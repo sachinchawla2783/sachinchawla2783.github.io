@@ -8,6 +8,7 @@ const { notify } = require('../lib/notify');
 const { audit } = require('../lib/audit');
 const settings = require('../lib/settings');
 const { allForums, descendants } = require('../lib/forums');
+const { summaries } = require('../lib/users');
 
 const router = express.Router();
 router.use(require('../lib/limits').admin);
@@ -52,6 +53,33 @@ router.get('/users', async (req, res) => {
   const rows = await db.many(`SELECT u.id, u.username, u.email, u.status, u.role_id, u.created_at, u.last_seen_at FROM users u
     WHERE u.status <> 'deleted' AND (u.username ILIKE $1 ESCAPE '\\' OR u.email ILIKE $1 ESCAPE '\\') ORDER BY u.created_at DESC LIMIT 100`, [like]);
   res.json({ users: rows.map((r) => ({ id: String(r.id), username: r.username, email: r.email, status: r.status, role: r.role_id, joinedAt: r.created_at, lastSeenAt: r.last_seen_at })) });
+});
+
+/* ---------- alt-account detection (sign-up/login signals) ---------- */
+
+const signalJson = (s) => ({ event: s.event, ip: s.ip, deviceId: s.device_id, deviceName: s.device_name, userAgent: s.user_agent, country: s.country, at: s.created_at });
+
+/* Recent sign-ups with their signals and any accounts they share an IP or device with. */
+router.get('/accounts', async (req, res) => {
+  assertCan(req.user, 'admin.users');
+  const rows = await db.many(`SELECT s.*, u.username::text AS username FROM account_signals s JOIN users u ON u.id = s.user_id
+    WHERE s.event = 'register' ORDER BY s.created_at DESC LIMIT 100`);
+  const { matches } = require('../lib/signals');
+  const out = [];
+  for (const r of rows) out.push(Object.assign({ userId: String(r.user_id) }, signalJson(r), { matches: await matches(r.user_id) }));
+  res.json({ accounts: out, users: await summaries(out.flatMap((a) => [a.userId, ...a.matches.map((m) => m.userId)])) });
+});
+
+/* Everything recorded for one account, plus accounts that share an IP or device with it. */
+router.get('/users/:id/signals', async (req, res) => {
+  assertCan(req.user, 'admin.users');
+  const id = idParam(req.params.id);
+  const u = await db.one('SELECT id FROM users WHERE id = $1', [id]);
+  if (!u) throw notFound('Member not found.');
+  const rows = await db.many('SELECT * FROM account_signals WHERE user_id = $1 ORDER BY created_at DESC LIMIT 200', [id]);
+  const m = await require('../lib/signals').matches(id);
+  await audit(db, req, 'user.view_signals', 'user', id, {});
+  res.json({ userId: String(id), signals: rows.map(signalJson), matches: m, users: await summaries([id, ...m.map((x) => x.userId)]) });
 });
 
 router.patch('/users/:id/role', async (req, res) => {

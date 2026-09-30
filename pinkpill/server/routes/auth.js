@@ -13,6 +13,7 @@ const settings = require('../lib/settings');
 const limits = require('../lib/limits');
 const { notify } = require('../lib/notify');
 const { mePayload } = require('../lib/me');
+const signals = require('../lib/signals');
 
 const router = express.Router();
 const MAX_FAILED = 10, LOCK_MINUTES = 15;
@@ -64,6 +65,7 @@ router.post('/register', limits.register, async (req, res) => {
       await q.query('INSERT INTO profiles (user_id, birthday, avatar_color) VALUES ($1, $2, $3)', [u.id, d.birthday, COLORS[Math.floor(Math.random() * COLORS.length)]]);
       await q.query('INSERT INTO user_preferences (user_id) VALUES ($1)', [u.id]);
       await notify(q, { userId: u.id, type: 'welcome', text: 'Welcome to PinkPill! Start by introducing yourself.', link: '#/forums/f-intro' });
+      await signals.onRegister(q, req, res, u);
       return { user: u, token: await issueVerification(q, u) };
     }));
   } catch (err) {
@@ -85,7 +87,7 @@ const loginSchema = z.object({
 router.post('/login', limits.login, async (req, res) => {
   if (config.turnstile.onLogin) await turnstile.require(req);
   const d = parse(loginSchema, req.body);
-  const u = await db.one(`SELECT id, password_hash, status, failed_logins, locked_until FROM users
+  const u = await db.one(`SELECT id, username::text AS username, password_hash, status, failed_logins, locked_until FROM users
     WHERE (username = $1 OR email = $1) AND status <> 'deleted'`, [d.login]);
   if (!u) { await dummyVerify(d.password); throw unauthorized('Incorrect username/email or password.'); }
   if (u.locked_until && new Date(u.locked_until) > new Date()) {
@@ -98,6 +100,7 @@ router.post('/login', limits.login, async (req, res) => {
     throw unauthorized('Incorrect username/email or password.');
   }
   await db.query('UPDATE users SET failed_logins = 0, locked_until = NULL, last_seen_at = now() WHERE id = $1', [u.id]);
+  await db.tx((q) => signals.onLogin(q, req, res, u.id, u.username));
   const csrfToken = await createSession(req, res, u.id, d.stay !== false);
   res.json({ csrfToken });
 });

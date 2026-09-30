@@ -87,6 +87,7 @@ into the Render dashboard (or GitHub Actions secrets for backups). Never put rea
 | `TURNSTILE_SECRET_KEY` | Server-side token verification | **Yes** | Same widget | Strongly recommended (both or neither) |
 | `ADMIN_CLAIM_TOKEN` | One-time token to claim the first super administrator (≥ 24 characters) | **Yes** | Generate locally (below) | First deploy only; **delete afterwards** |
 | `TRUST_PROXY` | Number of proxies in front of the app | No | Set to `1` by `render.yaml` (Render's proxy) | Preset |
+| `GEO_COUNTRY_HEADER` | Header carrying the visitor's country for alt detection, e.g. `cf-ipcountry` | No | Only set it if a proxy you control adds that header (Cloudflare with the orange-cloud proxy on). Otherwise leave unset and country shows as unknown | Optional |
 | `STRIPE_SECRET_KEY` | VIP card payments (Stripe Checkout) | **Yes** | Stripe → Developers → API keys (secret key) | Optional (card shows "not available" without it) |
 | `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhook signatures | **Yes** | Stripe → Developers → Webhooks → your endpoint → signing secret | With `STRIPE_SECRET_KEY` |
 | `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` | VIP PayPal payments | Secret: **Yes** | PayPal Developer → Apps & Credentials | Optional (all three together) |
@@ -571,3 +572,14 @@ Question, LifeFuel, Discussion, Blackpill, Redpill, Mogs, Whitepill, Bluepill, G
 Motivation, Rage, Looksmax, News, JFL, Theory, Venting, Over, Cope, Slay, Rate Me (one per thread, optional; the
 NSFW tag is separate and can be combined with any prefix). Migration `007_prefixes.sql` mapped the old
 prefixes: Routine → Guide, Glow-Up → Success, Research → Theory, Vent → Venting (Rate Me is kept).
+
+### Alt-account detection
+On sign-up and every login the server records the IP address, a readable device name (from the
+User-Agent), a per-browser device ID (random value in the `pp_device` cookie; browsers don't expose
+hardware IDs) and, if `GEO_COUNTRY_HEADER` is set, the country. Administrators (`admin.users`) get an alert
+for every new account, listing accounts that share its IP or device, and an alert when someone logs in
+from a banned member's device or IP. Admin panel → 🕵 New accounts & alts shows everything; each profile's
+⋯ menu links to that member's records (viewing is audit-logged). Records are deleted after one year, are
+included in the member's data export, and are described in the privacy policy. Limits: shared IPs are
+common (households, schools, mobile carriers), and clearing cookies or switching browsers gives a new
+device ID, so treat matches as leads, not proof.

@@ -425,6 +425,7 @@
         (perm.warn ? '<button data-act="warn" data-id="' + m.id + '">Warn</button>' : '') +
         (perm.ban ? '<button data-act="ban" data-id="' + m.id + '" data-on="' + (m.banned ? 1 : '') + '" class="danger">' + (m.banned ? 'Lift ban' : 'Ban / suspend') + '</button>' : '') +
         (perm.setRole ? '<button data-act="set-role" data-id="' + m.id + '" data-role="' + m.role + '">Change user group</button>' : '') +
+        (me() && me().permissions.includes('admin.users') ? '<a href="#/mod/accounts?user=' + m.id + '">🕵 IPs, devices &amp; alts</a>' : '') +
         '</div></span>' : '') +
       '</div></div></section>';
     const tabs = [['profile-posts', 'Profile posts'], ['activity', 'Latest activity'], ['postings', 'Postings'], ['about', 'About'], ['reputation', 'Reputation'], ['trophies', 'Trophies'], ['followers', 'Followers'], ['following', 'Following']];
@@ -601,7 +602,7 @@
 
   /* ---------- alerts ---------- */
 
-  function alertIcon(t) { return { reply: '💬', mention: '@', quote: '❝', reaction: '💖', follow: '➕', 'follow-thread': '🧵', trophy: '🏆', conversation: '✉', 'profile-post': '📝', 'profile-comment': '💭', report: '🚩', 'report-resolved': '✅', warning: '⚠', welcome: '🌸', rep: '⚖', moderation: '🛡', vip: '👑' }[t] || '🔔'; }
+  function alertIcon(t) { return { reply: '💬', mention: '@', quote: '❝', reaction: '💖', follow: '➕', 'follow-thread': '🧵', trophy: '🏆', conversation: '✉', 'profile-post': '📝', 'profile-comment': '💭', report: '🚩', 'report-resolved': '✅', warning: '⚠', welcome: '🌸', rep: '⚖', moderation: '🛡', vip: '👑', account: '🕵' }[t] || '🔔'; }
 
   function alertRow(a) {
     const from = a.actorId && U(a.actorId);
@@ -771,8 +772,8 @@
         '<h3>Ranks</h3><table class="table"><tbody>' + trophyCache.ranks.map((r) => '<tr><td><b>' + esc(r.title) + '</b></td><td>' + r.min + '+ messages</td></tr>').join('') + '</tbody></table>' : '',
       smilies: '<p>Use the 😊 button in the editor or type any emoji directly.</p><div class="smilies">' + '😀 😂 🥹 😊 😍 🥰 😘 😎 🤔 😮 😢 😭 😤 🙄 😴 🤗 🫶 💖 💕 💗 ✨ 🌸 🌷 💅 💄 💋 👑 💎 🔥 💯 👏 🙏 💪'.split(' ').map((e) => '<span>' + e + '</span>').join('') + '</div>',
       terms: '<p>By using PinkPill you agree to follow the <a href="#/help/rules">forum rules</a>. Content you post is your own responsibility. Staff may edit, move or remove content and suspend accounts that break the rules. Advice shared here is peer opinion, not medical advice — consult licensed professionals.</p>',
-      privacy: '<p>PinkPill stores your account (username, email, a salted Argon2id password hash, profile details and preferences) and the content you post in its database. Your email address and date of birth are never shown publicly (only the month and day of your birthday are). Private conversations are visible only to their participants. Uploaded images are re-encoded and stripped of metadata such as GPS location. You can download your data or delete your account at any time from Account → Your data.</p>',
-      cookies: '<p>PinkPill sets one essential cookie, <code>pp_session</code>, to keep you logged in. It is HttpOnly (not readable by scripts). There are no tracking or advertising cookies. Your theme, drafts and a few display preferences are kept in your browser\'s local storage.</p>',
+      privacy: '<p>PinkPill stores your account (username, email, a salted Argon2id password hash, profile details and preferences) and the content you post in its database. Your email address and date of birth are never shown publicly (only the month and day of your birthday are). Private conversations are visible only to their participants. Uploaded images are re-encoded and stripped of metadata such as GPS location.</p><p><b>Preventing alt accounts:</b> when you register and each time you log in, we record your IP address, your browser and device type, a random device ID stored in a cookie on your browser and, where our network provider supplies it, your country. Only administrators can see this. It is used to detect duplicate accounts and ban evasion, and is deleted after one year.</p><p>You can download your data or delete your account at any time from Account → Your data.</p>',
+      cookies: '<p>PinkPill sets two essential cookies: <code>pp_session</code> keeps you logged in, and <code>pp_device</code> is a random device ID used to detect duplicate accounts (see the privacy policy). Both are HttpOnly (not readable by scripts). There are no tracking or advertising cookies. Your theme, drafts and a few display preferences are kept in your browser\'s local storage.</p>',
       resources: '<ul class="resources"><li><b>Emergency:</b> call your local emergency number</li><li><b>US:</b> 988 Suicide &amp; Crisis Lifeline — call or text 988</li><li><b>UK &amp; ROI:</b> Samaritans — 116 123</li><li><b>Eating disorders:</b> NEDA (US) · Beat (UK) 0808 801 0677 · Butterfly (AU) 1800 33 4673</li><li><b>Body dysmorphic disorder:</b> BDD Foundation — bddfoundation.org</li><li><b>Worldwide:</b> <a href="https://findahelpline.com" target="_blank" rel="noopener">findahelpline.com</a></li></ul>',
     };
     const body = map[page] || map.index;
@@ -795,7 +796,7 @@
     if (P('mod.view_log')) tabs.push(['log', 'Moderation log']);
     if (P('admin.stats')) tabs.push(['stats', 'Dashboard']);
     if (P('admin.forums')) tabs.push(['forums', 'Forums']);
-    if (P('admin.users')) tabs.push(['roles', 'Roles & permissions']);
+    if (P('admin.users')) tabs.push(['accounts', '🕵 New accounts & alts'], ['roles', 'Roles & permissions']);
     if (P('admin.settings')) tabs.push(['settings', 'Settings']);
     if (P('admin.vip')) tabs.push(['vip', '👑 VIP']);
     if (P('admin.import')) tabs.push(['data', 'Data']);
@@ -861,6 +862,20 @@
         '<label class="field"><span>Messages required to give negative rep</span><input type="number" name="neg_rep_min_posts" min="0" max="10000" value="' + Number(s.neg_rep_min_posts) + '"></label>' +
         '<label class="field"><span>Maximum poll options</span><input type="number" name="max_poll_options" min="2" max="50" value="' + Number(s.max_poll_options) + '"></label>' +
         '<div class="form-actions"><button class="btn btn-primary">Save settings</button></div></div></form>';
+    } else if (tab === 'accounts') {
+      const sig = (s) => '<span class="small">' + esc(s.ip || '?') + ' · ' + esc(s.deviceName) + (s.country ? ' · ' + esc(s.country) : '') + ' · <code title="Device ID (browser cookie)">' + esc((s.deviceId || '').slice(0, 8)) + '…</code></span>';
+      const matchList = (ms) => (ms.length ? ms.map((m) => username(U(m.userId)) + ' <span class="badge' + (m.sameDevice ? ' badge--red' : '') + '">' + (m.sameDevice ? 'same device' : 'same IP') + '</span>' + (m.banned ? ' <span class="badge badge--red">banned</span>' : '')).join(', ') : '<span class="muted small">none</span>');
+      if (q.get('user')) {
+        const d = await api.get('/admin/users/' + encodeURIComponent(q.get('user')) + '/signals');
+        body = '<p><a href="#/mod/accounts">‹ All new accounts</a></p><section class="block"><h3 class="block-head">' + username(U(d.userId)) + ': accounts sharing an IP or device</h3><div class="block-body">' + matchList(d.matches) + '</div></section>' +
+          '<section class="block"><h3 class="block-head">Sign-ups and logins</h3><table class="table"><thead><tr><th>When</th><th>Event</th><th>IP</th><th>Device</th><th>Country</th><th>Device ID</th></tr></thead><tbody>' +
+          d.signals.map((s) => '<tr><td class="small nowrap">' + time(s.at) + '</td><td>' + esc(s.event) + '</td><td class="small">' + esc(s.ip || '') + '</td><td class="small" title="' + esc(s.userAgent) + '">' + esc(s.deviceName) + '</td><td>' + esc(s.country || '—') + '</td><td><code class="small">' + esc(s.deviceId || '') + '</code></td></tr>').join('') + '</tbody></table></section>';
+      } else {
+        const d = await api.get('/admin/accounts');
+        body = '<p class="small muted">Every new account is recorded with its IP address, device (browser/OS), a per-browser device ID and, if configured, country. Admins are alerted when a new account shares an IP or device with another, and when a banned member\'s device or IP is used to log in. Shared IPs can be innocent (households, schools, mobile networks); a shared device ID is a stronger sign.</p>' +
+          '<section class="block"><table class="table"><thead><tr><th>New account</th><th>Joined</th><th>Signals</th><th>Shares IP/device with</th></tr></thead><tbody>' +
+          (d.accounts.length ? d.accounts.map((a) => '<tr><td><a href="#/mod/accounts?user=' + a.userId + '">' + esc((U(a.userId) || {}).username || '?') + '</a></td><td class="small nowrap">' + time(a.at) + '</td><td>' + sig(a) + '</td><td>' + matchList(a.matches) + '</td></tr>').join('') : '<tr><td colspan="4" class="empty">No sign-ups recorded yet.</td></tr>') + '</tbody></table></section>';
+      }
     } else if (tab === 'vip') {
       body = await PP.vipViews.adminVip(q);
     } else if (tab === 'data') {

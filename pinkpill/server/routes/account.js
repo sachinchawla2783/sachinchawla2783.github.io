@@ -172,6 +172,7 @@ router.get('/export', async (req, res) => {
     profilePosts: await db.many('SELECT id, profile_user_id, content, created_at FROM profile_posts WHERE author_id = $1', [id]),
     messages: await db.many('SELECT m.id, m.conversation_id, m.content, m.created_at FROM conversation_messages m WHERE m.author_id = $1', [id]),
     reputationGiven: await db.many('SELECT post_id, value, comment, created_at FROM reputation WHERE giver_id = $1', [id]),
+    signInRecords: await db.many('SELECT event, ip::text AS ip, device_name, country, created_at FROM account_signals WHERE user_id = $1 ORDER BY created_at DESC', [id]),
   };
   res.set('Content-Disposition', 'attachment; filename="pinkpill-my-data.json"');
   res.json(data);

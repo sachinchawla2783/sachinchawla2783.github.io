@@ -268,7 +268,10 @@ test('production mode: __Host- session cookie is Secure, HttpOnly, SameSite=Lax,
     const hdr = { Host: 'pinkpill.test', 'X-Forwarded-Proto': 'https', 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' };
     const r = await raw(s.port, 'POST', '/api/auth/register', hdr, JSON.stringify({ username: 'produser', email: 'prod@example.com', password: 'a long password', birthday: '1990-01-01', agree: true }));
     assert.equal(r.status, 201, r.body);
-    const cookie = r.headers['set-cookie'][0];
+    const cookie = r.headers['set-cookie'].find((c) => c.startsWith('__Host-pp_session='));
+    // The alt-detection device cookie gets the same protections.
+    const device = r.headers['set-cookie'].find((c) => c.startsWith('__Host-pp_device='));
+    assert.ok(device && /; HttpOnly/i.test(device) && /; Secure/i.test(device) && /SameSite=Lax/i.test(device), device);
     assert.match(cookie, /^__Host-pp_session=/);
     assert.match(cookie, /; HttpOnly/i);
     assert.match(cookie, /; Secure/i);

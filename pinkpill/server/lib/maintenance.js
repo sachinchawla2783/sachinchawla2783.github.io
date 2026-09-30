@@ -14,7 +14,8 @@ async function run() {
   try {
     const r = await db.query(`WITH s AS (DELETE FROM sessions WHERE expires_at < now() RETURNING 1),
         p AS (DELETE FROM password_resets WHERE expires_at < now() - interval '1 day' RETURNING 1),
-        e AS (DELETE FROM email_verifications WHERE expires_at < now() - interval '1 day' RETURNING 1)
+        e AS (DELETE FROM email_verifications WHERE expires_at < now() - interval '1 day' RETURNING 1),
+        a AS (DELETE FROM account_signals WHERE created_at < now() - interval '1 year' RETURNING 1)
       SELECT (SELECT count(*) FROM s)::int AS sessions, (SELECT count(*) FROM p)::int AS resets, (SELECT count(*) FROM e)::int AS verifications`);
     // Mark lapsed time-limited VIP memberships 'expired' (lifetime memberships are never touched).
     // Entitlement checks already ignore them the moment they lapse; this keeps statuses and the audit log tidy.
