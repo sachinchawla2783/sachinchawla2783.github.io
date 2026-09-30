@@ -275,7 +275,7 @@
     report(el) {
       if (!need()) return;
       modal('Report content', '<form data-form="report" data-kind="' + el.dataset.kind + '" data-id="' + el.dataset.id + '"><p class="small muted">Reports are sent to moderators. Please explain what rule this breaks.</p>' +
-        '<label class="field"><span>Reason</span><select name="preset"><option value="">Choose…</option><option>Bullying or harassment</option><option>Dangerous practice (DIY procedures, etc.)</option><option>Self-harm / someone at risk</option><option>Spam</option><option>Photo of someone else / minor</option><option>Hate speech</option><option>Other</option></select></label>' +
+        '<label class="field"><span>Reason</span><select name="preset"><option value="">Choose…</option><option>Low-effort post outside Off-Topic</option><option>Necroposting</option><option>Illegal content</option><option>Sexualizing minors</option><option>Multiple or shared accounts</option><option>Posting for a banned user</option><option>Gore or shock material</option><option>Scat</option><option>Repfarming</option><option>Trolling / disruption</option><option>Private content</option><option>Private surgery results</option><option>Doxxing</option><option>Mass-tagging</option><option>Spam or bots</option><option>Impersonation</option><option>Misinformation</option><option>Advertising</option><option>Other</option></select></label>' +
         '<label class="field"><span>Details</span><textarea name="reason" rows="3" maxlength="400"></textarea></label><div class="form-actions"><button class="btn btn-primary">Report</button> <button type="button" class="btn" data-close>Cancel</button></div></form>');
     },
     async bookmark(el) {
@@ -498,7 +498,6 @@
       const reason = [d.preset, d.reason].filter(Boolean).join(': ');
       await api.post('/reports', { type: f.dataset.kind, id: f.dataset.id, reason });
       closeModal(); toast('Thank you for reporting this content.');
-      if ((d.preset || '').startsWith('Self-harm')) ui.modal('Thank you for looking out 💗', '<p>Moderators have been alerted. If someone is in immediate danger, contact local emergency services. More resources: <a href="#/help/resources" data-close>Support resources</a>.</p>');
     },
     async 'poll-vote'(f) {
       const vals = [...f.querySelectorAll('input:checked')].map((i) => i.value);

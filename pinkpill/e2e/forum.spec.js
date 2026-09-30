@@ -190,7 +190,7 @@ test.describe.serial('PinkPill acceptance', () => {
     // Report → moderator queue
     await nav(amyPage, '/#/threads/' + threadId);
     await amyPage.locator('article.message').nth(1).locator('[data-act=report]').click();
-    await amyPage.selectOption('.modal select[name=preset]', 'Spam');
+    await amyPage.selectOption('.modal select[name=preset]', 'Spam or bots');
     await amyPage.click('.modal button.btn-primary');
     await nav(beaPage, '/#/mod/reports');
     await expect(beaPage.locator('.report-row').first()).toContainText('Spam');

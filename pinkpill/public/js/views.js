@@ -723,17 +723,26 @@
     const bbExamples = ['[b]Bold[/b]', '[i]Italic[/i]', '[u]Underline[/u]', '[s]Strike[/s]', '[color=#ec4899]Pink text[/color]', '[size=5]Big text[/size]', '[url=https://example.com]Link[/url]', '[media]https://youtu.be/dQw4w9WgXcQ[/media]', '[quote=Aurora]Quoted text[/quote]', '[spoiler]Hidden text[/spoiler]', '[code]code block[/code]', '[list]\n[*]One\n[*]Two\n[/list]', '[center]Centered[/center]', '@Aurora (mention)'];
     const map = {
       index: '<div class="help-grid">' + pages.map(([k, l]) => '<a class="block help-card" href="#/help/' + k + '"><b>' + l + '</b></a>').join('') + '</div>',
-      rules: '<ol class="rules">' +
-        '<li><b>18+ only.</b> You must be an adult to join. Never post images of minors.</li>' +
-        '<li><b>Be kind.</b> No bullying, harassment, slurs, body-shaming, or "it\'s over"/doomer posting at other members. Critique features constructively and only in opt-in threads.</li>' +
-        '<li><b>No dangerous practices.</b> Bonesmashing, DIY injections (filler, botox), black-market drugs and skin-lightening with mercury/steroids are banned. Nothing is flagged automatically; use Report if a post breaks the rules.</li>' +
-        '<li><b>Medical claims need care.</b> Share experiences, cite sources, and recommend licensed professionals. No selling or promoting unregulated products.</li>' +
-        '<li><b>Consent.</b> Only post photos of yourself. No rating celebrities\' or strangers\' photos, no screenshots of private people.</li>' +
-        '<li><b>No hate.</b> No misogyny, misandry, racism, homophobia, transphobia or ideology wars.</li>' +
-        '<li><b>No spam or self-promotion</b> without staff permission.</li>' +
-        '<li><b>Crisis content.</b> If you\'re in crisis, please reach out to the <a href="#/help/resources">support resources</a>. Encouraging self-harm = permanent ban.</li>' +
-        '<li><b>One account per person.</b> Ban evasion results in permanent bans.</li>' +
-        '<li><b>Report, don\'t retaliate.</b> Use the Report button; moderators review everything.</li></ol>',
+      rules: '<p><b>You may not:</b></p><ol class="rules">' +
+        '<li><b>Post low-effort content.</b><ul><li>Only allowed in the Off-Topic section.</li><li>Not allowed in threads tagged as “Serious.”</li></ul></li>' +
+        '<li><b>Necropost.</b><ul><li>Avoid replying to threads older than 1 month unless you have a good reason.</li><li>“Bumps,” one-liners, quoting, or simple agreement are not valid reasons.</li></ul></li>' +
+        '<li><b>Post illegal content or incite illegal activity.</b><ul><li>If you\'re unsure whether something is allowed, don’t post it.</li></ul></li>' +
+        '<li><b>Sexualize minors.</b><ul><li>Any individual under the age of 18.</li></ul></li>' +
+        '<li><b>Create more than one account or share your account.</b><ul><li>All accounts will be banned.</li></ul></li>' +
+        '<li><b>Post on behalf of banned users.</b></li>' +
+        '<li><b>Post gore and shock material.</b></li>' +
+        '<li><b>Post scat and shit.</b></li>' +
+        '<li><b>Repfarm.</b><ul><li>Do not manipulate the reputation system for gain.</li></ul></li>' +
+        '<li><b>Exist solely to troll or intentionally disrupt the forum.</b><ul><li>While exaggerated personas may be tolerated, accounts whose primary or only intent is to antagonize others, incite conflict, or undermine the forum’s integrity will face permanent removal.</li></ul></li>' +
+        '<li><b>Post private content.</b><ul><li>This includes private messages, user info, or images.</li></ul></li>' +
+        '<li><b>Post private surgery results.</b><ul><li>This will result in a permanent ban whether intentional or not.</li></ul></li>' +
+        '<li><b>Dox or threaten to dox.</b><ul><li>This applies to anyone, even those outside the community.</li></ul></li>' +
+        '<li><b>Mass-tag users.</b></li>' +
+        '<li><b>Spam.</b><ul><li>Includes AI-generated content or repetitive posting.</li></ul></li>' +
+        '<li><b>Use bots, scripts, or automation to post or manipulate reputation.</b></li>' +
+        '<li><b>Impersonate users.</b><ul><li>Includes using someone else’s current or old username.</li></ul></li>' +
+        '<li><b>Spread misinformation.</b></li>' +
+        '<li><b>Advertise without staff permission.</b></li></ol>',
       faq: '<dl class="faq"><dt>What is PinkPill?</dt><dd>A looksmaxxing (appearance-improvement) community for women focused on evidence-based, safe and kind self-improvement.</dd>' +
         '<dt>How do alerts work?</dt><dd>You receive alerts when someone replies to a thread you watch, mentions you with @name, quotes you, reacts to your content, gives you reputation, follows you, writes on your profile, or starts a conversation with you.</dd>' +
         '<dt>How do I get a rating?</dt><dd>Post in <a href="#/forums/f-rating">Rating</a> (or its members-only Private Ratings sub-forum), or tick "Enable community ratings" when creating a thread. Each member can rate once (1–10) alongside constructive feedback.</dd>' +

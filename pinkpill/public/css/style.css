@@ -411,6 +411,10 @@ section.block > .table { margin: 0; }
 .help-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
 .help-card { padding: 16px; margin: 0; color: var(--text); }
 .rules li { margin-bottom: 8px; }
+.rules ul { margin: 4px 0 0; padding-left: 20px; font-weight: normal; }
+.rules ul li { margin-bottom: 2px; }
+.rules ul { margin: 4px 0 0; padding-left: 20px; font-weight: normal; }
+.rules ul li { margin-bottom: 2px; }
 .faq dt { font-weight: 700; margin-top: 12px; }
 .faq dd { margin: 4px 0 0; }
 .smilies { font-size: 1.8rem; display: flex; flex-wrap: wrap; gap: 8px; }

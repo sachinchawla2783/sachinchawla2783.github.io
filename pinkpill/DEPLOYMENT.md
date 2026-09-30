@@ -534,7 +534,7 @@ own copies, **never in Git** (`backups/`, `*.dump`, `*.dump.enc` are git-ignored
 ---
 
 ## 17. Account and age policy (as implemented)
-- **Requirement:** members must be 18 or older (Rule 1, Terms).
+- **Requirement:** members must be 18 or older (Terms; checked at registration).
 - **How it's collected:** a date of birth field at registration. The server rejects dates under 18 years
   and stores the date in `profiles.birthday`. Other members only ever see the month and day.
 - **What it is not:** this is **self-attestation**. Nothing verifies the date or the person's identity. A
