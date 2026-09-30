@@ -54,11 +54,11 @@ const THREADS = [
   ['f-body', 'Sakura', 'Posture fixes that made the biggest visual difference', 'guide', { tags: ['posture'] }, [
     ['Sakura', '• Chin tucks (2x10 daily)\n• Wall angels\n• Face pulls & rows\n• Hip flexor stretches if you sit all day'],
     ['Noor', 'Adding thoracic extensions over a foam roller — game changer.']]],
-  ['f-rating', 'Freya', 'Rate me honestly (but nicely) — what should I improve?', 'question', { tags: ['feedback'] }, [
+  ['f-rating', 'Freya', 'Rate me honestly (but nicely) — what should I improve?', 'rateme', { tags: ['feedback'] }, [
     ['Freya', 'No makeup, daylight. What would you focus on first?'],
     ['Mireille', 'Lovely eyes! Brows a touch fuller would frame your face more.', 7],
     ['Dahlia', 'Warm-toned blush would brighten everything up!', 8]]],
-  ['f-private-rating', 'Dahlia', 'Private: rate my new haircut (members only)', 'question', { tags: ['hair'] }, [
+  ['f-private-rating', 'Dahlia', 'Private: rate my new haircut (members only)', 'rateme', { tags: ['hair'] }, [
     ['Dahlia', 'Posting here since it\'s hidden from guests. Went from long layers to a collarbone bob. Thoughts?'],
     ['Mireille', 'Suits your jaw so well!', 8]]],
   ['f-advice', 'Freya', 'He only texts me late at night — am I overthinking?', 'question', { tags: ['dating'] }, [

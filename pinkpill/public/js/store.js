@@ -46,6 +46,7 @@
     { id: 'over', label: 'Over', color: '#1f2937' },
     { id: 'cope', label: 'Cope', color: '#a16207' },
     { id: 'slay', label: 'Slay', color: '#db2777' },
+    { id: 'rateme', label: 'Rate Me', color: '#ec4899' },
   ];
 
   PP.ROLE_TITLES = { member: 'Registered member', moderator: 'Moderator', admin: 'Administrator', super_admin: 'Super administrator' };

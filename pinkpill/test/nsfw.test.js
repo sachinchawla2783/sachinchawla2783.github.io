@@ -84,10 +84,10 @@ test('any member can tag their own thread NSFW (it is a tag, not a filter); staf
 });
 
 test('the new prefix set is accepted and old prefixes are rejected', async () => {
-  for (const p of ['question', 'lifefuel', 'blackpill', 'redpill', 'mogs', 'whitepill', 'bluepill', 'jfl', 'over', 'cope', 'slay', 'looksmax']) {
+  for (const p of ['question', 'lifefuel', 'blackpill', 'redpill', 'mogs', 'whitepill', 'bluepill', 'jfl', 'over', 'cope', 'slay', 'looksmax', 'rateme']) {
     assert.equal((await adult.post('/api/forums/f-offtopic/threads', { title: 'Prefix ' + p, content: 'x', prefix: p })).status, 201, p);
   }
-  for (const p of ['rateme', 'routine', 'glowup', 'vent', 'nsfw']) {
+  for (const p of ['routine', 'glowup', 'vent', 'nsfw']) {
     assert.equal((await adult.post('/api/forums/f-offtopic/threads', { title: 'Old ' + p, content: 'x', prefix: p })).status, 422, p);
   }
 });

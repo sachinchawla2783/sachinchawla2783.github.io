@@ -10,7 +10,7 @@ const THREADS_PER_PAGE = 20;
 const REACTIONS = ['like', 'love', 'glow', 'haha', 'wow', 'hug', 'sad'];
 // Custom reactions: only members whose active VIP membership includes custom reactions may use these.
 const VIP_REACTIONS = ['fire', 'crown', 'gem', 'butterfly'];
-const PREFIXES = ['question', 'lifefuel', 'discussion', 'blackpill', 'redpill', 'mogs', 'whitepill', 'bluepill', 'guide', 'serious', 'success', 'motivation', 'rage', 'looksmax', 'news', 'jfl', 'theory', 'venting', 'over', 'cope', 'slay'];
+const PREFIXES = ['question', 'lifefuel', 'discussion', 'blackpill', 'redpill', 'mogs', 'whitepill', 'bluepill', 'guide', 'serious', 'success', 'motivation', 'rage', 'looksmax', 'news', 'jfl', 'theory', 'venting', 'over', 'cope', 'slay', 'rateme'];
 
 /* Load a thread the viewer is allowed to see, or 404 (never 403, so hidden threads don't leak). */
 async function loadThread(id, user, q = db) {

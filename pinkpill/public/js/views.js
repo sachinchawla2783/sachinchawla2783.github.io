@@ -310,7 +310,7 @@
       (f.membersOnly ? '<div class="notice">🔒 This is a <b>members-only</b> forum: your thread will be hidden from guests.</div>' : '') +
       (f.ratingEnabled ? '<div class="notice">Posting in <b>' + esc(f.title) + '</b>: you\'re opting in to ratings and feedback. Only post photos of yourself. Revealing photos must be of adults (18+) and tagged NSFW. You can delete your thread at any time.</div>' : '') +
       '<form class="block form" data-form="post-thread" data-forum="' + f.id + '" data-draft="thread-' + f.id + '"><div class="block-body">' +
-      '<div class="row"><select name="prefix" class="prefix-select"><option value="">(No prefix)</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '">' + esc(p.label) + '</option>').join('') + '</select>' +
+      '<div class="row"><select name="prefix" class="prefix-select"><option value="">(No prefix)</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '"' + (f.ratingEnabled && p.id === 'rateme' ? ' selected' : '') + '>' + esc(p.label) + '</option>').join('') + '</select>' +
       '<input name="title" class="grow input-title" placeholder="Thread title" maxlength="150" required></div>' +
       editor('content', '', { rows: 12, required: true }) +
       '<label class="field"><span>Tags</span><input name="tags" placeholder="Separate with commas, e.g. skincare, acne"></label>' +

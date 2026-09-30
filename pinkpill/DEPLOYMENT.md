@@ -568,6 +568,6 @@ rules and footer. The rules page describes this behaviour.
 
 ### Thread prefixes
 Question, LifeFuel, Discussion, Blackpill, Redpill, Mogs, Whitepill, Bluepill, Guide, Serious, Success,
-Motivation, Rage, Looksmax, News, JFL, Theory, Venting, Over, Cope, Slay (one per thread, optional; the
+Motivation, Rage, Looksmax, News, JFL, Theory, Venting, Over, Cope, Slay, Rate Me (one per thread, optional; the
 NSFW tag is separate and can be combined with any prefix). Migration `007_prefixes.sql` mapped the old
-prefixes: Routine → Guide, Glow-Up → Success, Research → Theory, Vent → Venting, Rate Me → none.
+prefixes: Routine → Guide, Glow-Up → Success, Research → Theory, Vent → Venting (Rate Me is kept).
