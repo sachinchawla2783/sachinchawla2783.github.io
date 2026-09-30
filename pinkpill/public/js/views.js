@@ -119,7 +119,7 @@
     if (f.notice) html += '<div class="notice">' + esc(f.notice) + (f.id === 'f-advice' ? ' <a href="#/help/resources">Support resources</a>' : '') + '</div>';
     if (f.vipOnly) html += '<div class="notice notice--vip">👑 <b>VIP Supporters forum.</b> Only members with an active VIP membership (and staff) can see and post here. Thank you for supporting PinkPill!</div>';
     else if (f.membersOnly) html += '<div class="notice">🔒 <b>Private forum.</b> Threads here are only visible to logged-in members. They don\'t appear to guests, in guest searches or in public activity feeds.</div>';
-    if (f.ratingEnabled) html += '<div class="notice"><b>Rating rules:</b> feedback is opt-in and must be constructive. Point out strengths, suggest actionable changes. No insults, no "it\'s over", no comments on things people can\'t change. Violations = ban.</div>';
+    if (f.ratingEnabled) html += '<div class="notice"><b>Rating rules:</b> feedback is opt-in and must be constructive. Point out strengths and suggest actionable changes.</div>';
     html += '<form class="filter-bar" data-form="thread-filter" data-forum="' + f.id + '">' +
       '<label>Prefix <select name="prefix"><option value="">Any</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '"' + (p.id === pfx ? ' selected' : '') + '>' + esc(p.label) + '</option>').join('') + '</select></label>' +
       '<label>Started by <input name="starter" value="' + esc(starter) + '" placeholder="Member" size="10"></label>' +
@@ -748,7 +748,7 @@
         '<li><b>No bots or automation.</b><ul><li>Don\'t use scripts or bots to post or to move reputation.</li></ul></li>' +
         '<li><b>Don\'t impersonate other members.</b><ul><li>That includes using someone\'s current or past username.</li></ul></li>' +
         '<li><b>Don\'t spread misinformation.</b></li>' +
-        '<li><b>No advertising without staff approval.</b></li></ol>',
+        '<li><b>No promoting or advertising without contacting an admin first.</b></li></ol>',
       faq: '<dl class="faq"><dt>What is PinkPill?</dt><dd>A looksmaxxing (appearance-improvement) community for women focused on evidence-based, safe and kind self-improvement.</dd>' +
         '<dt>How do alerts work?</dt><dd>You receive alerts when someone replies to a thread you watch, mentions you with @name, quotes you, reacts to your content, gives you reputation, follows you, writes on your profile, or starts a conversation with you.</dd>' +
         '<dt>How do I get a rating?</dt><dd>Post in <a href="#/forums/f-rating">Rating</a> (or its members-only Private Ratings sub-forum), or tick "Enable community ratings" when creating a thread. Each member can rate once (1–10) alongside constructive feedback.</dd>' +
