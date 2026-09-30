@@ -3,20 +3,41 @@
   'use strict';
   const { esc, store } = window.PP;
 
-  const safeColor = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? c : '#ec4899');
+  const HEX = /^#[0-9a-fA-F]{6}$/;
+  const safeColor = (c) => (HEX.test(c || '') ? c : '#ec4899');
+  // VIP username effects are predefined styles picked by id; unknown ids are ignored.
+  const VIP_EFFECTS = { glow: 1, shimmer: 1, sparkle: 1, outline: 1 };
+
+  /* VIP decoration comes from the server (u.vip is computed from active entitlements); colors are
+     re-validated here so only #RRGGBB values ever reach a style attribute. */
+  function vipName(u) {
+    const v = u && u.vip;
+    if (!v) return { cls: '', style: '' };
+    let cls = ' username--vip', style = '';
+    const c = v.color;
+    if (c && HEX.test(c.hex1 || '')) {
+      if (c.hex2 && HEX.test(c.hex2)) { cls += ' username--gradient'; style = '--c1:' + c.hex1 + ';--c2:' + c.hex2; } else style = 'color:' + c.hex1;
+    }
+    if (v.effect && VIP_EFFECTS[v.effect]) cls += ' vipfx vipfx--' + v.effect;
+    return { cls, style };
+  }
+  const frameAttr = (u) => (u && u.vip && HEX.test(u.vip.frame || '') ? { cls: ' avatar--frame', style: '--frame:' + u.vip.frame + ';' } : { cls: '', style: '' });
+  const verifiedBadge = (u) => (u && u.vip && u.vip.badge ? '<span class="vip-verified" title="Lifetime VIP" aria-label="Lifetime VIP">✔</span>' : '');
 
   function avatar(u, size) {
     size = size || 'm';
     if (!u || u.deleted) return '<span class="avatar avatar-' + size + '" style="background:#999">?</span>';
     const link = '#/members/' + u.id;
-    if (u.avatarUrl && window.PP.safeUrl(u.avatarUrl)) return '<a href="' + link + '" class="avatar avatar-' + size + '" title="' + esc(u.username) + '"><img src="' + esc(u.avatarUrl) + '" alt="' + esc(u.username) + '"></a>';
-    return '<a href="' + link + '" class="avatar avatar-' + size + '" style="background:' + safeColor(u.color) + '" title="' + esc(u.username) + '">' + esc(u.username[0].toUpperCase()) + '</a>';
+    const fr = frameAttr(u);
+    if (u.avatarUrl && window.PP.safeUrl(u.avatarUrl)) return '<a href="' + link + '" class="avatar avatar-' + size + fr.cls + '"' + (fr.style ? ' style="' + fr.style + '"' : '') + ' title="' + esc(u.username) + '"><img src="' + esc(u.avatarUrl) + '" alt="' + esc(u.username) + '"></a>';
+    return '<a href="' + link + '" class="avatar avatar-' + size + fr.cls + '" style="' + fr.style + 'background:' + safeColor(u.color) + '" title="' + esc(u.username) + '">' + esc(u.username[0].toUpperCase()) + '</a>';
   }
 
   function username(u, cls) {
     if (!u || u.deleted) return '<span class="username">Deleted member</span>';
     const role = u.role === 'admin' || u.role === 'super_admin' ? ' username--admin' : u.role === 'moderator' ? ' username--mod' : '';
-    return '<a href="#/members/' + u.id + '" class="username' + role + (u.banned ? ' username--banned' : '') + ' ' + (cls || '') + '" data-user-tip="' + u.id + '">' + esc(u.username) + '</a>';
+    const v = vipName(u);
+    return '<a href="#/members/' + u.id + '" class="username' + role + v.cls + (u.banned ? ' username--banned' : '') + ' ' + (cls || '') + '"' + (v.style ? ' style="' + v.style + '"' : '') + ' data-user-tip="' + u.id + '">' + esc(u.username) + '</a>' + verifiedBadge(u);
   }
 
   function userTitle(u) {
@@ -222,5 +243,5 @@
     el.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - el.offsetWidth - 8)) + 'px';
   }
 
-  window.PP.ui = { safeColor, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, handleSafety, bindUserTips, insertAt };
+  window.PP.ui = { safeColor, vipName, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, handleSafety, bindUserTips, insertAt };
 })();

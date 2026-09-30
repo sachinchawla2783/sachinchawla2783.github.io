@@ -15,6 +15,15 @@
     { id: 'sad', emoji: '😢', label: 'Sad', score: 0 },
   ];
 
+  // VIP+ custom reactions. The server only accepts them from members whose membership includes them.
+  PP.VIP_REACTIONS = [
+    { id: 'fire', emoji: '🔥', label: 'Fire', score: 0, vip: true },
+    { id: 'crown', emoji: '👑', label: 'Crown', score: 0, vip: true },
+    { id: 'gem', emoji: '💎', label: 'Gem', score: 0, vip: true },
+    { id: 'butterfly', emoji: '🦋', label: 'Butterfly', score: 0, vip: true },
+  ];
+  PP.reactionDef = (id) => PP.REACTIONS.concat(PP.VIP_REACTIONS).find((r) => r.id === id) || null;
+
   PP.PREFIXES = [
     { id: 'question', label: 'Question', color: '#3b82f6' },
     { id: 'discussion', label: 'Discussion', color: '#8b5cf6' },

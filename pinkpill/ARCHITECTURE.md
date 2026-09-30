@@ -218,6 +218,18 @@ Render (free web service, native Node runtime) + Neon (pooled PostgreSQL) + Clou
 + Resend (email) + Cloudflare DNS/Turnstile. Full procedure, variables and limits: **DEPLOYMENT.md**.
 Nothing is provider-locked: the database, storage (S3 API), mail and domain are all configuration.
 
+### 2.10a VIP memberships
+Migration `003_vip.sql`: `vip_products` (prices in cents plus the benefit definition of each package),
+`vip_orders` (every purchase, gift or admin grant, with its provider ids and status), `payment_events`
+(webhook idempotency), `vip_memberships` (entitlements; a CHECK makes lifetime ⇔ no expiration date),
+`user_vip_prefs` (chosen color/frame/effect), `user_wallets` + `wallet_transactions`, and the color,
+frame and effect catalogs. `server/lib/vip.js` combines a member's *active* memberships into
+entitlements; the session loads them on every request, and they are enforced in forum visibility
+(`forums.vip_only`), conversation limits, the edit window, rating-thread deletion, reactions, username
+and vanity-URL cooldowns and public member summaries. `server/lib/payments/` is a provider interface
+(Stripe, PayPal and Coinbase Commerce, each with signed webhooks, plus the internal wallet).
+`completeOrderTx` is the only code that turns a paid order into a membership. See DEPLOYMENT.md §8a.
+
 ### 2.11 Security strategy
 Parameterised SQL only; JSON-only API (no server-rendered HTML); the frontend escapes before BBCode
 parsing and only allows whitelisted tags and `https:`/`/media/`/`#/` URLs; strict CSP (`script-src 'self'`);

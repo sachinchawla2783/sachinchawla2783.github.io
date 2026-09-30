@@ -3,6 +3,7 @@ const db = require('../db');
 const config = require('../config');
 const { randomToken, sha256, safeEqual } = require('./crypto');
 const { roles } = require('./permissions');
+const vip = require('./vip');
 const { forbidden } = require('./errors');
 
 // __Host- prefix (production): browsers only accept it when Secure, Path=/ and no Domain, so a
@@ -47,7 +48,9 @@ async function loadSession(req, res, next) {
     const row = await db.one(`SELECT s.id, s.csrf_token, s.persistent, s.last_used_at, u.id AS user_id, u.username, u.role_id, u.status,
         (SELECT json_build_object('reason', b.reason, 'expiresAt', b.expires_at) FROM bans b
           WHERE b.user_id = u.id AND b.lifted_at IS NULL AND (b.expires_at IS NULL OR b.expires_at > now())
-          ORDER BY b.created_at DESC LIMIT 1) AS ban
+          ORDER BY b.created_at DESC LIMIT 1) AS ban,
+        (SELECT coalesce(json_agg(json_build_object('product_id', m.product_id, 'lifetime', m.lifetime, 'expiration_date', m.expiration_date)), '[]'::json)
+          FROM vip_memberships m WHERE m.user_id = u.id AND ${vip.ACTIVE}) AS vip_rows
       FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.id = $1 AND s.expires_at > now() AND u.status <> 'deleted'`, [sha256(token)]);
     if (!row) { res.clearCookie(COOKIE, cookieOptions(false)); return next(); }
@@ -57,6 +60,8 @@ async function loadSession(req, res, next) {
     req.user = {
       id: row.user_id, username: row.username, status: row.status, role: row.role_id,
       rank: role.rank, isStaff: role.isStaff, permissions: role.permissions, ban: row.ban,
+      // Entitlements from active VIP memberships, recomputed from the database on every request.
+      vip: row.vip_rows.length ? vip.combine(row.vip_rows, await vip.catalog()) : vip.NONE,
     };
     // Sliding expiry + presence, at most once a minute.
     if (Date.now() - new Date(row.last_used_at).getTime() > 60000) {

@@ -73,6 +73,25 @@ const config = {
     verifyUrl: env.TURNSTILE_VERIFY_URL || 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
     onLogin: bool(env.TURNSTILE_ON_LOGIN, false),
   },
+  // Payment providers for VIP. Each is optional; an unconfigured provider is shown as unavailable.
+  payments: {
+    stripe: {
+      secretKey: env.STRIPE_SECRET_KEY || '',
+      webhookSecret: env.STRIPE_WEBHOOK_SECRET || '',
+      apiUrl: (env.STRIPE_API_URL || 'https://api.stripe.com').replace(/\/+$/, ''),
+    },
+    paypal: {
+      clientId: env.PAYPAL_CLIENT_ID || '',
+      clientSecret: env.PAYPAL_CLIENT_SECRET || '',
+      webhookId: env.PAYPAL_WEBHOOK_ID || '',
+      apiUrl: (env.PAYPAL_API_URL || (env.PAYPAL_ENV === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com')).replace(/\/+$/, ''),
+    },
+    coinbase: {
+      apiKey: env.COINBASE_COMMERCE_API_KEY || '',
+      webhookSecret: env.COINBASE_COMMERCE_WEBHOOK_SECRET || '',
+      apiUrl: (env.COINBASE_COMMERCE_API_URL || 'https://api.commerce.coinbase.com').replace(/\/+$/, ''),
+    },
+  },
   rateLimits: { enabled: bool(env.RATE_LIMITS, true) },
   corsOrigins: (env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
 };
@@ -94,6 +113,12 @@ if (isProd) {
     if (!s.bucket || !s.endpoint || !s.accessKeyId || !s.secretAccessKey) problems.push('R2 storage needs R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET.');
   }
   if (!!config.turnstile.siteKey !== !!config.turnstile.secretKey) problems.push('Set both TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY, or neither.');
+  // A payment provider without its webhook secret could take money without being able to confirm it.
+  const pay = config.payments;
+  if (!!pay.stripe.secretKey !== !!pay.stripe.webhookSecret) problems.push('Set both STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET, or neither.');
+  if ([pay.paypal.clientId, pay.paypal.clientSecret, pay.paypal.webhookId].filter(Boolean).length % 3) problems.push('Set PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET and PAYPAL_WEBHOOK_ID together, or none of them.');
+  if (!!pay.coinbase.apiKey !== !!pay.coinbase.webhookSecret) problems.push('Set both COINBASE_COMMERCE_API_KEY and COINBASE_COMMERCE_WEBHOOK_SECRET, or neither.');
+  if (env.PAYPAL_ENV && !['live', 'sandbox'].includes(env.PAYPAL_ENV)) problems.push('PAYPAL_ENV must be "live" or "sandbox".');
 }
 if (!['local', 'r2', 's3'].includes(config.storage.driver)) problems.push('STORAGE_DRIVER must be local, r2 or s3.');
 if (!['resend', 'file', 'memory', 'console'].includes(config.mail.transport)) problems.push('MAIL_TRANSPORT must be resend, file, memory or console.');

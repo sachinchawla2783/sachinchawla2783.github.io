@@ -4,7 +4,8 @@ const db = require('../db');
 const { z, parse, idParam, content } = require('../lib/validate');
 const { assertCan, requireUser } = require('../lib/permissions');
 const { summaries } = require('../lib/users');
-const { forbidden, notFound, invalid } = require('../lib/errors');
+const { forbidden, notFound, invalid, HttpError } = require('../lib/errors');
+const vip = require('../lib/vip');
 const { assertSafeContent } = require('../lib/content');
 const { notify } = require('../lib/notify');
 const limits = require('../lib/limits');
@@ -14,7 +15,7 @@ const { syncRefs } = require('../lib/attachments');
 const router = express.Router();
 router.use('/conversations', requireUser);
 const PER_PAGE = 50;
-const MAX_PARTICIPANTS = 20;
+const HARD_MAX = 100;   // parsing cap only; the real limit comes from site settings and VIP entitlements
 
 /* Only current participants may see a conversation; everyone else gets 404 (no existence leak). */
 async function loadConversation(id, user, q = db) {
@@ -39,10 +40,13 @@ async function canMessage(from, toId, q = db) {
   return true;
 }
 
-async function resolveRecipients(names, from) {
-  const list = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+const limitMessage = (limit, user) => `A conversation can have at most ${limit} participants in total.` +
+  (user.vip && user.vip.conversationLimit >= 25 ? '' : user.vip && user.vip.conversationLimit ? ' VIP+ members can include up to 25.' : ' VIP members can include up to 15, VIP+ up to 25.');
+
+async function resolveRecipients(names, from, limit) {
+  const list = [...new Set(names.map((n) => n.trim().toLowerCase()).filter(Boolean))];
   if (!list.length) throw invalid('Please enter at least one recipient.');
-  if (list.length > MAX_PARTICIPANTS - 1) throw invalid(`A conversation can have at most ${MAX_PARTICIPANTS} participants.`);
+  if (list.length > limit - 1) throw new HttpError(403, 'participant_limit', limitMessage(limit, from));
   const rows = await db.many(`SELECT id, username FROM users WHERE username = ANY($1::citext[]) AND status <> 'deleted'`, [list]);
   for (const n of list) {
     const r = rows.find((x) => x.username.toLowerCase() === n.toLowerCase());
@@ -52,7 +56,7 @@ async function resolveRecipients(names, from) {
   return rows;
 }
 
-const namesSchema = z.union([z.array(z.string().max(24)).max(MAX_PARTICIPANTS), z.string().max(600).transform((s) => s.split(','))]);
+const namesSchema = z.union([z.array(z.string().max(24)).max(HARD_MAX), z.string().max(2600).transform((s) => s.split(','))]);
 
 router.get('/conversations', async (req, res) => {
   const { filter } = parse(z.object({ filter: z.enum(['', 'unread', 'starred', 'started']).default('') }).strip(), req.query);
@@ -73,7 +77,8 @@ router.post('/conversations', limits.message, async (req, res) => {
   const d = parse(z.object({ to: namesSchema, title: z.string().trim().min(1).max(100), content: content(20000), allowInvite: z.boolean().optional() }).strict(), req.body);
   assertSafeContent(d.content);
   await T.assertNotFlooding(req.user);
-  const recips = await resolveRecipients(d.to, req.user);
+  const recips = await resolveRecipients(d.to, req.user, await T.participantLimit(req.user));
+  if (recips.some((r) => String(r.id) === String(req.user.id))) throw invalid('You are automatically part of the conversation.');
   const c = await db.tx(async (q) => {
     const conv = await q.one('INSERT INTO conversations (title, starter_id, allow_invite) VALUES ($1, $2, $3) RETURNING id, title', [d.title, req.user.id, !!d.allowInvite]);
     await q.query('INSERT INTO conversation_participants (conversation_id, user_id, last_read_at) VALUES ($1, $2, now())', [conv.id, req.user.id]);
@@ -128,10 +133,16 @@ router.post('/conversations/:id/invite', limits.write, async (req, res) => {
   const c = await loadConversation(req.params.id, req.user);
   if (String(c.starter_id) !== String(req.user.id) && !c.allow_invite) throw forbidden('You can\'t invite members to this conversation.');
   const d = parse(z.object({ names: namesSchema }).strict(), req.body);
-  const recips = await resolveRecipients(d.names, req.user);
-  const count = (await db.one('SELECT count(*)::int AS n FROM conversation_participants WHERE conversation_id = $1', [c.id])).n;
-  if (count + recips.length > MAX_PARTICIPANTS) throw invalid(`A conversation can have at most ${MAX_PARTICIPANTS} participants.`);
+  // The conversation may grow up to the larger of the inviter's and the starter's limits.
+  const starterEnt = c.starter_id ? await vip.entitlementsOf(c.starter_id) : vip.NONE;
+  const limit = Math.max(await T.participantLimit(req.user), await T.participantLimit({ vip: starterEnt }));
+  const recips = await resolveRecipients(d.names, req.user, limit);
   await db.tx(async (q) => {
+    // Lock the conversation so concurrent invites can't exceed the limit together.
+    await q.query('SELECT id FROM conversations WHERE id = $1 FOR UPDATE', [c.id]);
+    const existing = new Set((await q.many('SELECT user_id FROM conversation_participants WHERE conversation_id = $1', [c.id])).map((r) => String(r.user_id)));
+    const added = recips.filter((r) => !existing.has(String(r.id)));
+    if (existing.size + added.length > limit) throw new HttpError(403, 'participant_limit', limitMessage(limit, req.user));
     for (const r of recips) {
       const ins = await q.query('INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [c.id, r.id]);
       if (ins.rowCount) await notify(q, { userId: r.id, actorId: req.user.id, type: 'conversation', text: `${req.user.username} invited you to a conversation: ${c.title}`, link: `#/conversations/${c.id}` });

@@ -2,12 +2,14 @@
 const db = require('../db');
 const { can } = require('./permissions');
 const { visibleForumIds } = require('./forums');
-const { notFound, tooMany } = require('./errors');
+const { notFound, tooMany, HttpError } = require('./errors');
 const settings = require('./settings');
 
 const POSTS_PER_PAGE = 20;
 const THREADS_PER_PAGE = 20;
 const REACTIONS = ['like', 'love', 'glow', 'haha', 'wow', 'hug', 'sad'];
+// Custom reactions: only members whose active VIP membership includes custom reactions may use these.
+const VIP_REACTIONS = ['fire', 'crown', 'gem', 'butterfly'];
 const PREFIXES = ['question', 'discussion', 'guide', 'routine', 'rateme', 'glowup', 'research', 'serious', 'vent'];
 
 /* Load a thread the viewer is allowed to see, or 404 (never 403, so hidden threads don't leak). */
@@ -59,4 +61,46 @@ async function repPower(userId, role, q = db) {
   return base + (role === 'admin' || role === 'super_admin' ? 2 : role === 'moderator' ? 1 : 0);
 }
 
-module.exports = { POSTS_PER_PAGE, THREADS_PER_PAGE, REACTIONS, PREFIXES, loadThread, loadPost, refreshThreadStats, assertNotFlooding, repPower };
+/* How long (minutes) this member may edit their own posts. 0 = no limit. VIP+ raises it. */
+async function editWindowMinutes(user, q = db) {
+  const base = Number(await settings.get('post_edit_window_minutes', 60)) || 0;
+  if (!base) return 0;
+  const v = user && user.vip && user.vip.editWindowMinutes;
+  return v ? Math.max(base, v) : base;
+}
+
+function formatMinutes(m) {
+  if (m % 1440 === 0) return (m / 1440) + ' day' + (m === 1440 ? '' : 's');
+  if (m % 60 === 0) return (m / 60) + ' hour' + (m === 60 ? '' : 's');
+  return m + ' minute' + (m === 1 ? '' : 's');
+}
+
+/* Own-post edits must happen within the member's edit window (moderators are exempt; callers check). */
+async function assertWithinEditWindow(user, post, q = db) {
+  const w = await editWindowMinutes(user, q);
+  if (w && Date.now() - new Date(post.created_at).getTime() > w * 60000) {
+    throw new HttpError(403, 'edit_window_passed', `You can only edit your posts within ${formatMinutes(w)} of posting.` + (user.vip && user.vip.editWindowMinutes ? '' : ' VIP+ members get a 12-hour editing window.'));
+  }
+}
+
+/* Deleting your own thread in a rating forum once it has replies is a VIP benefit. The caller has
+   already checked that the member owns the thread (VIP never allows deleting other people's threads). */
+async function assertCanDeleteOwnThread(user, thread, q = db) {
+  const f = await q.one('SELECT rating_enabled FROM forums WHERE id = $1', [thread.forum_id]);
+  if (!f || !f.rating_enabled) return;
+  if (user.vip && user.vip.ratingsDelete) return;
+  const max = Number(await settings.get('ratings_delete_max_replies', 0)) || 0;
+  if (thread.reply_count > max) {
+    throw new HttpError(403, 'vip_required', 'Rating threads that already have replies can only be deleted by VIP members. Ask a moderator if you need it removed.');
+  }
+}
+
+/* Largest conversation (total participants) this member may create or grow. */
+async function participantLimit(user) {
+  const base = Number(await settings.get('conversation_max_participants', 10)) || 10;
+  const v = user && user.vip && user.vip.conversationLimit;
+  return Math.max(base, v || 0);
+}
+
+module.exports = { POSTS_PER_PAGE, THREADS_PER_PAGE, REACTIONS, VIP_REACTIONS, PREFIXES, loadThread, loadPost, refreshThreadStats, assertNotFlooding, repPower,
+  editWindowMinutes, assertWithinEditWindow, assertCanDeleteOwnThread, participantLimit };

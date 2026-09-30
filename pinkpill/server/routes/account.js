@@ -1,11 +1,13 @@
 'use strict';
 const express = require('express');
 const db = require('../db');
-const { z, parse, password } = require('../lib/validate');
+const { z, parse, password, username } = require('../lib/validate');
 const { hashPassword, verifyPassword } = require('../lib/crypto');
 const { requireUser } = require('../lib/permissions');
 const { revokeOtherSessions, destroySession } = require('../lib/session');
-const { badRequest, conflict, forbidden } = require('../lib/errors');
+const { badRequest, conflict, forbidden, invalid, HttpError } = require('../lib/errors');
+const { audit } = require('../lib/audit');
+const limits = require('../lib/limits');
 const { mePayload } = require('../lib/me');
 const { assertSafeContent } = require('../lib/content');
 
@@ -79,6 +81,59 @@ router.patch('/profile', async (req, res) => {
   res.json({ user: await mePayload(req.user) });
 });
 
+/* ---------- VIP: username changes and vanity profile URLs (cooldowns enforced here, not in the browser) ---------- */
+
+const DAY = 86400000;
+const nextAllowed = (at, days) => (at ? new Date(new Date(at).getTime() + days * DAY) : null);
+const vipRequired = (what) => new HttpError(403, 'vip_required', what + ' is a VIP benefit. See the VIP page for details.');
+
+router.post('/username', limits.write, async (req, res) => {
+  const d = parse(z.object({ username, password: z.string().min(1).max(200) }).strict(), req.body);
+  const days = req.user.vip && req.user.vip.usernameCooldownDays;
+  if (!days) throw vipRequired('Changing your username');
+  const u = await db.one('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+  if (!(await verifyPassword(u.password_hash, d.password))) throw forbidden('Your current password is incorrect.');
+  try {
+    await db.tx(async (q) => {
+      const row = await q.one('SELECT username::text AS username, username_changed_at FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+      if (row.username === d.username) throw invalid('That is already your username.');
+      const next = nextAllowed(row.username_changed_at, days);
+      if (next && next > new Date()) throw new HttpError(429, 'cooldown', `You can change your username again on ${next.toUTCString()}.`);
+      await q.query('UPDATE users SET username = $2, username_changed_at = now(), updated_at = now() WHERE id = $1', [req.user.id, d.username]);
+      await audit(q, req, 'account.username_change', 'user', req.user.id, { from: row.username, to: d.username });
+    });
+  } catch (e) { if (e.code === '23505') throw conflict('That username is already taken.'); throw e; }
+  res.json({ user: await mePayload(Object.assign({}, req.user, { username: d.username })) });
+});
+
+const RESERVED_VANITY = new Set(['admin', 'administrator', 'moderator', 'mod', 'staff', 'support', 'pinkpill', 'vip', 'api', 'media', 'help', 'login',
+  'logout', 'register', 'account', 'members', 'member', 'forums', 'threads', 'search', 'settings', 'health', 'ready', 'official', 'system']);
+
+router.put('/vanity', limits.write, async (req, res) => {
+  const d = parse(z.object({ vanity: z.union([z.literal(''), z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9_-]{2,29}$/, 'Use 3-30 characters: letters, numbers, _ and -, starting with a letter or number.')]) }).strict(), req.body);
+  const days = req.user.vip && req.user.vip.vanityCooldownDays;
+  if (!days) throw vipRequired('A vanity profile URL');
+  if (d.vanity && RESERVED_VANITY.has(d.vanity)) throw invalid('That URL is reserved.', { vanity: 'Reserved' });
+  try {
+    await db.tx(async (q) => {
+      const row = await q.one('SELECT vanity::text AS vanity, vanity_changed_at FROM profiles WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+      if ((row.vanity || '') === d.vanity) return;
+      if (!d.vanity) {
+        // Removing is always allowed, but doesn't reset the cooldown for setting a new one.
+        await q.query('UPDATE profiles SET vanity = NULL WHERE user_id = $1', [req.user.id]);
+      } else {
+        const next = nextAllowed(row.vanity_changed_at, days);
+        if (next && next > new Date()) throw new HttpError(429, 'cooldown', `You can change your vanity URL again on ${next.toUTCString()}.`);
+        // Don't let a vanity URL impersonate another member's username.
+        if (await q.one(`SELECT 1 FROM users WHERE username = $1 AND id <> $2 AND status <> 'deleted'`, [d.vanity, req.user.id])) throw conflict('That URL matches another member\'s username.');
+        await q.query('UPDATE profiles SET vanity = $2, vanity_changed_at = now() WHERE user_id = $1', [req.user.id, d.vanity]);
+      }
+      await audit(q, req, 'account.vanity_change', 'user', req.user.id, { from: row.vanity, to: d.vanity || null });
+    });
+  } catch (e) { if (e.code === '23505') throw conflict('That vanity URL is already taken.'); throw e; }
+  res.json({ user: await mePayload(req.user) });
+});
+
 const prefsSchema = z.object({
   theme: z.enum(['auto', 'light', 'dark']),
   showOnline: z.boolean(),
@@ -133,7 +188,8 @@ router.delete('/', async (req, res) => {
   }
   await db.tx(async (q) => {
     await q.query(`UPDATE users SET username = 'deleted-' || id, email = NULL, password_hash = NULL, status = 'deleted', role_id = 'member', updated_at = now() WHERE id = $1`, [req.user.id]);
-    await q.query(`UPDATE profiles SET custom_title = '', bio = '', location = '', website = '', birthday = NULL, signature = '', avatar_id = NULL, banner_id = NULL WHERE user_id = $1`, [req.user.id]);
+    await q.query(`UPDATE profiles SET custom_title = '', bio = '', location = '', website = '', birthday = NULL, signature = '', avatar_id = NULL, banner_id = NULL, vanity = NULL WHERE user_id = $1`, [req.user.id]);
+    await q.query('DELETE FROM user_vip_prefs WHERE user_id = $1', [req.user.id]);
     for (const t of ['follows WHERE follower_id = $1 OR followee_id = $1', 'ignores WHERE user_id = $1 OR ignored_id = $1', 'bookmarks WHERE user_id = $1', 'thread_watches WHERE user_id = $1', 'notifications WHERE user_id = $1', 'sessions WHERE user_id = $1']) {
       await q.query('DELETE FROM ' + t, [req.user.id]);
     }

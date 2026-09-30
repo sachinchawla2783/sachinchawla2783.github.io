@@ -134,6 +134,9 @@ Unsafe requests need the session's `X-CSRF-Token` header (from `GET /api/auth/se
 | Uploads | `POST /uploads` (multipart `file` + `purpose`), `GET /media/:uuid` |
 | Reports | `POST /reports` |
 | Moderation | `GET /mod/reports`, `POST /mod/reports/:id/resolve`, `GET /mod/users`, `POST/DELETE /mod/users/:id/ban`, `POST /mod/users/:id/warn`, `GET /mod/warnings`, `GET /mod/log` |
+| VIP | `GET /vip/catalog`, `GET /vip/me`, `POST /vip/quote`, `POST /vip/checkout`, `GET /vip/orders/:id`, `POST /vip/orders/:id/{verify,cancel}`, `PATCH /vip/style`, `GET /vip/recipient`, `GET /account/purchases`, `POST /account/username`, `PUT /account/vanity`, `GET /members/by-vanity/:slug` |
+| Payment webhooks | `POST /payments/webhooks/{stripe,paypal,coinbase}` (signature-verified, no cookies) |
+| VIP admin | `/admin/vip/{memberships,orders,products,colors,frames,effects,wallets,settings}` (needs `admin.vip`) |
 | Admin | `GET /admin/stats`, `GET /admin/users`, `PATCH /admin/users/:id/role`, `GET /admin/roles`, `PUT /admin/roles/:id/permissions`, `POST/PATCH/DELETE /admin/categories[/:id]`, `POST/PATCH/DELETE /admin/forums[/:id]`, `GET/PATCH /admin/settings`, `POST /admin/import` |
 
 ## Known limitations

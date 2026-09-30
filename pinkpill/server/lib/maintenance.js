@@ -16,7 +16,10 @@ async function run() {
         p AS (DELETE FROM password_resets WHERE expires_at < now() - interval '1 day' RETURNING 1),
         e AS (DELETE FROM email_verifications WHERE expires_at < now() - interval '1 day' RETURNING 1)
       SELECT (SELECT count(*) FROM s)::int AS sessions, (SELECT count(*) FROM p)::int AS resets, (SELECT count(*) FROM e)::int AS verifications`);
-    log.info('maintenance.cleanup', r.rows[0]);
+    // Mark lapsed time-limited VIP memberships 'expired' (lifetime memberships are never touched).
+    // Entitlement checks already ignore them the moment they lapse; this keeps statuses and the audit log tidy.
+    const expired = await require('./vip').expireMemberships();
+    log.info('maintenance.cleanup', Object.assign({ vipExpired: expired }, r.rows[0]));
   } catch (err) {
     log.warn('maintenance.failed', { code: err.code, message: err.message });
   } finally { running = false; }

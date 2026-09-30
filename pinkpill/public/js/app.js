@@ -32,6 +32,10 @@
     [/^\/whats-new(?:\/([a-z-]+))?$/, views.whatsNew],
     [/^\/latest-activity$/, () => views.whatsNew(['activity'], new URLSearchParams())],
     [/^\/help(?:\/([a-z-]+))?$/, views.help],
+    [/^\/vip$/, (m, q) => PP.vipViews.page(m, q)],
+    [/^\/vip\/(checkout|gift)\/([a-z0-9-]+)$/, (m, q) => PP.vipViews.checkout(m, q)],
+    [/^\/vip\/return$/, (m, q) => PP.vipViews.returned(m, q)],
+    [/^\/u\/([a-z0-9_-]+)$/i, (m) => PP.vipViews.vanity(m)],
     [/^\/mod(?:\/([a-z-]+))?$/, views.mod],
   ];
 
@@ -86,12 +90,13 @@
     renderHeader(parseHash().path);
   }
   PP.refreshCounts = refreshCounts;
+  PP.app = { go: (h) => go(h), refresh: () => refresh(), render: (k) => render(k) };
 
   function renderHeader(path) {
     const u = me();
     document.querySelectorAll('[data-nav]').forEach((a) => {
       const k = a.dataset.nav;
-      a.classList.toggle('active', (k === 'forums' && (path === '/' || /^\/(forums|threads|post-thread|tags)/.test(path))) || (k !== 'forums' && path.startsWith('/' + k)));
+      a.classList.toggle('active', (k === 'forums' && (path === '/' || /^\/(forums|threads|post-thread|tags)/.test(path))) || (k !== 'forums' && path.startsWith('/' + k)) || (k === 'vip' && /^\/account\/(vip|purchases)/.test(path)));
     });
     const bar = document.getElementById('userbar');
     if (!u) {
@@ -117,7 +122,7 @@
       const s = u.stats;
       body.innerHTML = '<div class="menu-head">' + ui.avatar(u, 'm') + '<div>' + ui.username(u) + '<div class="small muted">' + ui.userTitle(u) + '</div><div class="small muted">Messages: ' + s.posts + ' · Reactions: ' + s.reactionScore + ' · Rep: ' + s.rep + '</div></div></div>' +
         '<a href="#/members/' + u.id + '">Your profile</a><a href="#/whats-new/feed">Your news feed</a><a href="#/members/' + u.id + '/postings">Your content</a><a href="#/account/bookmarks">Bookmarks</a><a href="#/account/watched">Watched threads</a><hr>' +
-        '<a href="#/account/details">Account details</a><a href="#/account/personal">Personal details</a><a href="#/account/security">Password &amp; security</a><a href="#/account/privacy">Privacy</a><a href="#/account/preferences">Preferences</a><a href="#/account/signature">Signature</a><a href="#/account/following">Following</a><a href="#/account/ignoring">Ignoring</a><hr>' +
+        '<a href="#/account/details">Account details</a><a href="#/account/personal">Personal details</a><a href="#/account/security">Password &amp; security</a><a href="#/account/privacy">Privacy</a><a href="#/account/preferences">Preferences</a><a href="#/account/signature">Signature</a><a href="#/account/following">Following</a><a href="#/account/ignoring">Ignoring</a><a href="#/account/vip">👑 VIP membership</a><a href="#/account/purchases">Purchases</a><hr>' +
         (store.can('profile_post.create') ? '<form data-form="status" class="menu-status"><input name="content" placeholder="Update your status…" maxlength="140"><button class="btn btn-sm">Post</button></form>' : '') + '<button data-act="logout">Log out</button>';
     } else if (name === 'alerts') {
       body.innerHTML = '<div class="menu-title">Alerts</div><div class="empty small">Loading…</div>';
@@ -234,7 +239,7 @@
       if (el.dataset.kind === 'post') list = (await run(() => api.get('/posts/' + el.dataset.id + '/reactions')) || {}).reactions;
       else list = (PP.ppCache || {})[el.dataset.id];
       if (!list) { const t = findPost(el.dataset.id); list = t ? t.reactions : []; }
-      modal('Members who reacted', '<div class="member-list">' + list.map((r) => { const m = store.user(r.userId); const def = PP.REACTIONS.find((x) => x.id === r.reaction); return m ? '<div class="member-row">' + ui.avatar(m, 's') + '<div class="grow">' + ui.username(m) + '<div class="small muted">' + ui.userTitle(m) + '</div></div><span style="font-size:1.4em">' + (def ? def.emoji : '') + '</span></div>' : ''; }).join('') + '</div>');
+      modal('Members who reacted', '<div class="member-list">' + list.map((r) => { const m = store.user(r.userId); const def = PP.reactionDef(r.reaction); return m ? '<div class="member-row">' + ui.avatar(m, 's') + '<div class="grow">' + ui.username(m) + '<div class="small muted">' + ui.userTitle(m) + '</div></div><span style="font-size:1.4em">' + (def ? def.emoji : '') + '</span></div>' : ''; }).join('') + '</div>');
     },
     quote(el) {
       const ta = replyBox(); const p = findPost(el.dataset.id);
@@ -389,6 +394,7 @@
         '<label class="field"><span>Display order</span><input type="number" name="position" value="' + (f.position || 0) + '"></label>' +
         '<label class="field"><span>Notice shown at the top of the forum</span><input name="notice" value="' + esc(f.notice || '') + '" maxlength="500"></label>' +
         '<label class="check"><input type="checkbox" name="membersOnly"' + (f.membersOnly ? ' checked' : '') + '> 🔒 Members only (hidden from guests)</label>' +
+        '<label class="check"><input type="checkbox" name="vipOnly"' + (f.vipOnly ? ' checked' : '') + '> 👑 VIP only (hidden from everyone without an active VIP membership; staff always see it)</label>' +
         '<label class="check"><input type="checkbox" name="staffOnly"' + (f.staffOnly ? ' checked' : '') + '> Only staff can post threads</label><label class="check"><input type="checkbox" name="ratingEnabled"' + (f.ratingEnabled ? ' checked' : '') + '> Rating forum (threads have ratings enabled)</label><div class="form-actions"><button class="btn btn-primary">Save</button></div></form>');
     },
     'delete-forum'(el) { confirmBox('Delete this forum? It must have no threads or sub-forums.', async () => { if (await run(() => api.del('/admin/forums/' + el.dataset.id))) { toast('Forum deleted.'); refresh(); } }, 'Delete'); },
@@ -574,7 +580,7 @@
       toast('Settings saved.');
     },
     async 'edit-forum'(f, d) {
-      const body = { title: d.title.trim(), description: d.description.trim(), icon: d.icon || '💬', categoryId: d.categoryId, parentId: d.parentId || null, position: Number(d.position) || 0, staffOnly: !!d.staffOnly, membersOnly: !!d.membersOnly, ratingEnabled: !!d.ratingEnabled, notice: d.notice || '' };
+      const body = { title: d.title.trim(), description: d.description.trim(), icon: d.icon || '💬', categoryId: d.categoryId, parentId: d.parentId || null, position: Number(d.position) || 0, staffOnly: !!d.staffOnly, membersOnly: !!d.membersOnly || !!d.vipOnly, vipOnly: !!d.vipOnly, ratingEnabled: !!d.ratingEnabled, notice: d.notice || '' };
       if (f.dataset.id) await api.patch('/admin/forums/' + f.dataset.id, body); else await api.post('/admin/forums', body);
       closeModal(); toast('Forum saved.'); refresh();
     },

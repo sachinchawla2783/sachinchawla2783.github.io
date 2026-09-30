@@ -3,7 +3,8 @@ const express = require('express');
 const db = require('../db');
 const { z, parse, idParam, slugParam, content } = require('../lib/validate');
 const { can, assertCan, requireUser } = require('../lib/permissions');
-const { visibleForumIds, allForums, descendants } = require('../lib/forums');
+const { visibleForumIds, allForums, descendants, isVipForum } = require('../lib/forums');
+const vip = require('../lib/vip');
 const { summaries } = require('../lib/users');
 const { notFound, forbidden, invalid } = require('../lib/errors');
 const { assertSafeContent, normalizeTags } = require('../lib/content');
@@ -56,7 +57,7 @@ async function forumStats(user, forums) {
 
 const forumJson = (f, stats) => ({
   id: f.id, categoryId: f.category_id, parentId: f.parent_id, title: f.title, description: f.description, icon: f.icon,
-  position: f.position, staffOnly: f.staff_only, membersOnly: f.members_only, ratingEnabled: f.rating_enabled, notice: f.notice,
+  position: f.position, staffOnly: f.staff_only, membersOnly: f.members_only, vipOnly: f.vip_only, ratingEnabled: f.rating_enabled, notice: f.notice,
   ...(stats ? { stats } : {}),
 });
 
@@ -225,10 +226,13 @@ router.post('/forums/:id/threads', limits.thread, async (req, res) => {
     const prefs = await q.one('SELECT auto_watch FROM user_preferences WHERE user_id = $1', [req.user.id]);
     if (d.watch !== false && (d.watch || !prefs || prefs.auto_watch)) await q.query('INSERT INTO thread_watches (user_id, thread_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.user.id, t.id]);
     const link = `#/threads/${t.id}`;
-    const followers = await q.many('SELECT follower_id FROM follows WHERE followee_id = $1', [req.user.id]);
+    let followers = await q.many('SELECT follower_id FROM follows WHERE followee_id = $1', [req.user.id]);
     const visibleToGuests = !f.members_only;
+    // Threads in VIP-only forums are only announced to people who can open them.
+    const vipOnly = isVipForum(await allForums(), f.id);
+    if (vipOnly) { const ok = await vip.vipForumAudience(followers.map((x) => x.follower_id), q); followers = followers.filter((x) => ok.has(String(x.follower_id))); }
     for (const fl of followers) await notify(q, { userId: fl.follower_id, actorId: req.user.id, type: 'follow-thread', text: `${req.user.username} started a new thread: ${t.title}`, link });
-    await notifyMentions(q, { content: d.content, actor: req.user, link: `#/threads/${t.id}/post-${p.id}`, where: t.title });
+    await notifyMentions(q, { content: d.content, actor: req.user, link: `#/threads/${t.id}/post-${p.id}`, where: t.title, audience: vipOnly ? (ids) => vip.vipForumAudience(ids, q) : null });
     await safety.autoReport(q, 'post', p.id, check.danger);
     await checkTrophies(q, req.user.id);
     return { thread: t, postId: p.id, visibleToGuests };
@@ -350,6 +354,9 @@ router.get('/threads/:id', async (req, res) => {
       sticky: can(me, 'mod.sticky'), lock: can(me, 'mod.lock'), move: can(me, 'mod.move'),
       editAny: can(me, 'mod.edit_any'), deleteAny: can(me, 'mod.delete_any'), warn: can(me, 'mod.warn'),
       editOwn: can(me, 'post.edit_own'), deleteOwn: can(me, 'post.delete_own'),
+      // 0 = no limit. The server enforces it; the client only uses it to hide the Edit button.
+      editWindowMinutes: me && !can(me, 'mod.edit_any') ? await T.editWindowMinutes(me) : 0,
+      vipReactions: !!(me && me.vip && me.vip.customReactions),
     },
     users,
   });
@@ -419,6 +426,7 @@ router.delete('/threads/:id', async (req, res) => {
   const d = parse(z.object({ reason: z.string().max(100).optional() }).strict(), req.body);
   const own = String(t.author_id) === String(me.id);
   if (!((own && can(me, 'post.delete_own')) || can(me, 'mod.delete_any'))) throw forbidden();
+  if (!can(me, 'mod.delete_any')) await T.assertCanDeleteOwnThread(me, t);
   await db.tx(async (q) => {
     await q.query('UPDATE threads SET deleted_at = now(), deleted_by = $2 WHERE id = $1', [t.id, me.id]);
     if (!own) {
@@ -479,10 +487,12 @@ router.post('/threads/:id/posts', limits.reply, async (req, res) => {
     await q.query('UPDATE threads SET reply_count = reply_count + 1, last_post_id = $2, last_post_at = $3 WHERE id = $1', [t.id, p.id, p.created_at]);
     await syncRefs(q, 'post', p.id, d.content, me.id);
     const link = `#/threads/${t.id}/post-${p.id}`;
-    const watchers = await q.many('SELECT user_id FROM thread_watches WHERE thread_id = $1 AND user_id <> $2', [t.id, me.id]);
+    let watchers = await q.many('SELECT user_id FROM thread_watches WHERE thread_id = $1 AND user_id <> $2', [t.id, me.id]);
+    const vipOnly = isVipForum(await allForums(), t.forum_id);
+    if (vipOnly) { const ok = await vip.vipForumAudience(watchers.map((w) => w.user_id), q); watchers = watchers.filter((w) => ok.has(String(w.user_id))); }
     // Watchers only get notified if they can still see the thread (e.g. not after it moved to a private forum and they were logged out — members always can).
     for (const w of watchers) await notify(q, { userId: w.user_id, actorId: me.id, type: 'reply', text: `${me.username} replied to the thread ${t.title}`, link });
-    await notifyMentions(q, { content: d.content, actor: me, link, where: t.title, excludeIds: watchers.map((w) => String(w.user_id)) });
+    await notifyMentions(q, { content: d.content, actor: me, link, where: t.title, excludeIds: watchers.map((w) => String(w.user_id)), audience: vipOnly ? (ids) => vip.vipForumAudience(ids, q) : null });
     const prefs = await q.one('SELECT auto_watch FROM user_preferences WHERE user_id = $1', [me.id]);
     if (!prefs || prefs.auto_watch) await q.query('INSERT INTO thread_watches (user_id, thread_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [me.id, t.id]);
     await q.query(`INSERT INTO thread_reads (user_id, thread_id, read_at) VALUES ($1, $2, now()) ON CONFLICT (user_id, thread_id) DO UPDATE SET read_at = now()`, [me.id, t.id]);

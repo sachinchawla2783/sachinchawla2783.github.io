@@ -10,14 +10,16 @@ async function notify(q, { userId, actorId = null, type, text, link = '#/alerts'
 }
 
 /* @mentions and [quote=Name] in new content. */
-async function notifyMentions(q, { content, actor, link, where, excludeIds = [] }) {
+async function notifyMentions(q, { content, actor, link, where, excludeIds = [], audience = null }) {
   const names = new Set();
   (content.match(/(^|[\s>(])@([A-Za-z0-9_.-]{3,24})/g) || []).forEach((m) => names.add(m.trim().replace(/^[>(]/, '').slice(1).toLowerCase()));
   const quoted = new Set();
   (content.match(/\[quote=([A-Za-z0-9_.-]{3,24})/gi) || []).forEach((m) => quoted.add(m.slice(7).toLowerCase()));
   const all = [...new Set([...names, ...quoted])].slice(0, 20);
   if (!all.length) return;
-  const users = await q.many('SELECT id, lower(username::text) AS name FROM users WHERE lower(username::text) = ANY($1) AND status <> $2', [all, 'deleted']);
+  let users = await q.many('SELECT id, lower(username::text) AS name FROM users WHERE lower(username::text) = ANY($1) AND status <> $2', [all, 'deleted']);
+  // Optional filter: only people allowed to see the content (e.g. VIP-only forums) are notified.
+  if (audience && users.length) { const ok = await audience(users.map((u) => u.id)); users = users.filter((u) => ok.has(String(u.id))); }
   for (const u of users) {
     if (excludeIds.includes(String(u.id))) continue;
     if (quoted.has(u.name)) await notify(q, { userId: u.id, actorId: actor.id, type: 'quote', text: `${actor.username} quoted your post in ${where}`, link });

@@ -19,6 +19,7 @@ const KNOWN_PERMISSIONS = [
   'mod.view_reports', 'mod.edit_any', 'mod.delete_any', 'mod.view_deleted', 'mod.lock', 'mod.sticky', 'mod.move',
   'mod.warn', 'mod.ban', 'mod.view_log', 'forum.post_staff_only',
   'admin.users', 'admin.forums', 'admin.settings', 'admin.stats', 'admin.import', 'admin.permissions',
+  'vip.purchase', 'admin.vip',
 ];
 
 /* ---------- dashboard ---------- */
@@ -153,6 +154,7 @@ const forumSchema = z.object({
   staffOnly: z.boolean().default(false),
   membersOnly: z.boolean().default(false),
   ratingEnabled: z.boolean().default(false),
+  vipOnly: z.boolean().default(false),
   notice: z.string().trim().max(500).default(''),
 }).strict();
 
@@ -174,8 +176,8 @@ router.post('/forums', async (req, res) => {
   const id = d.id || 'f-' + d.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
   try {
     await db.tx(async (q) => {
-      await q.query(`INSERT INTO forums (id, category_id, parent_id, title, description, icon, position, staff_only, members_only, rating_enabled, notice)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, [id, d.categoryId, d.parentId, d.title, d.description, d.icon, d.position, d.staffOnly, d.membersOnly, d.ratingEnabled, d.notice]);
+      await q.query(`INSERT INTO forums (id, category_id, parent_id, title, description, icon, position, staff_only, members_only, rating_enabled, notice, vip_only)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, [id, d.categoryId, d.parentId, d.title, d.description, d.icon, d.position, d.staffOnly, d.membersOnly || d.vipOnly, d.ratingEnabled, d.notice, d.vipOnly]);
       require('../lib/forums').invalidate();
       await audit(q, req, 'forum.create', 'forum', id, d);
     });
@@ -191,7 +193,7 @@ router.patch('/forums/:id', async (req, res) => {
   const d = parse(forumSchema.partial().strict(), req.body);
   if (d.id) throw invalid('Forum ids can\'t be changed.');
   await validateForumPlacement(d, id);
-  const map = { categoryId: 'category_id', parentId: 'parent_id', title: 'title', description: 'description', icon: 'icon', position: 'position', staffOnly: 'staff_only', membersOnly: 'members_only', ratingEnabled: 'rating_enabled', notice: 'notice' };
+  const map = { categoryId: 'category_id', parentId: 'parent_id', title: 'title', description: 'description', icon: 'icon', position: 'position', staffOnly: 'staff_only', membersOnly: 'members_only', ratingEnabled: 'rating_enabled', notice: 'notice', vipOnly: 'vip_only' };
   const sets = [], vals = [id];
   for (const [k, col] of Object.entries(map)) if (k in d) { vals.push(d[k]); sets.push(`${col} = $${vals.length}`); }
   await db.tx(async (q) => {

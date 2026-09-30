@@ -40,5 +40,6 @@ module.exports = {
   message: mk('message', MIN, 15, 'You\'re sending messages too fast. Please wait a moment.', { perUser: true }),
   upload: mk('upload', HOUR, 60, 'Upload limit reached. Try again later.', { perUser: true }),
   report: mk('report', HOUR, 20, 'Report limit reached. Try again later.', { perUser: true }),
+  vipCheckout: mk('vipCheckout', HOUR, 30, 'Too many checkout attempts. Please try again later.', { perUser: true }),
   admin: mk('admin', MIN, 60, 'Too many moderation/admin actions. Please wait a moment.', { perUser: true, onlyWrites: true }),
 };

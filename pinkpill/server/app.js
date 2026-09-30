@@ -87,6 +87,8 @@ function createApp(opts = {}) {
   app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
   app.use('/api', limits.api);
+  // Payment webhooks: raw body, authenticated by the provider's signature (not by cookies or CSRF).
+  app.use('/api/payments/webhooks', require('./routes/webhooks'));
   app.use(cookieParser());
   app.use(loadSession);
   app.use(maintenance.middleware);
@@ -114,10 +116,25 @@ function createApp(opts = {}) {
   app.use('/api', require('./routes/search'));
   app.use('/api', require('./routes/uploads'));
   app.use('/api', require('./routes/reports'));
+  app.use('/api', require('./routes/vip'));
   app.use('/api/mod', require('./routes/mod'));
+  app.use('/api/admin/vip', require('./routes/admin-vip'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/media', require('./routes/media'));
   app.use('/api', (req, res, next) => next(notFound('Unknown API endpoint.')));
+
+  /* Friendly page URLs (the app itself uses #/ routes). VIP pages are for members only: logged-out
+     visitors are sent to the login page and brought back afterwards. Only whitelisted query keys pass. */
+  const pageRedirect = (membersOnly) => (req, res) => {
+    const q = new URLSearchParams();
+    for (const k of ['order', 'cancelled']) if (typeof req.query[k] === 'string' && /^[\w-]{1,64}$/.test(req.query[k])) q.set(k, req.query[k]);
+    const hash = '#' + req.path.replace(/\/+$/, '') + (q.toString() ? '?' + q : '');
+    res.set('Cache-Control', 'no-store');
+    if (membersOnly && !req.user) return res.redirect(302, '/#/login?return=' + encodeURIComponent(hash));
+    res.redirect(302, '/' + hash);
+  };
+  app.get(['/vip', '/vip/checkout/:slug', '/vip/gift/:slug', '/vip/return', '/account/vip', '/account/purchases'], pageRedirect(true));
+  app.get('/u/:slug', pageRedirect(false));
 
   app.use(express.static(path.join(__dirname, '..', 'public'), {
     index: 'index.html',

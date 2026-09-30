@@ -4,7 +4,7 @@ const db = require('../db');
 const { z, parse, idParam, content } = require('../lib/validate');
 const { can, assertCan, requireUser } = require('../lib/permissions');
 const { summaries } = require('../lib/users');
-const { forbidden, notFound, invalid, tooMany } = require('../lib/errors');
+const { forbidden, notFound, invalid, tooMany, HttpError } = require('../lib/errors');
 const { assertSafeContent } = require('../lib/content');
 const { notify } = require('../lib/notify');
 const safety = require('../lib/safety');
@@ -28,6 +28,7 @@ router.patch('/posts/:id', limits.write, async (req, res) => {
   if (!((own && can(me, 'post.edit_own')) || can(me, 'mod.edit_any'))) throw forbidden('You cannot edit this post.');
   if (post.deleted_at) throw invalid('Restore the post before editing it.');
   if (own && thread.locked && !can(me, 'mod.lock')) throw forbidden('This thread is locked.');
+  if (!can(me, 'mod.edit_any')) await T.assertWithinEditWindow(me, post);
   const d = parse(z.object({ content: content(20000), reason: z.string().trim().max(100).optional() }).strict(), req.body);
   assertSafeContent(d.content);
   const check = safety.check(d.content);
@@ -49,6 +50,7 @@ router.delete('/posts/:id', async (req, res) => {
   const own = isOwn(post, me);
   if (!((own && can(me, 'post.delete_own')) || can(me, 'mod.delete_any'))) throw forbidden('You cannot delete this post.');
   const d = parse(z.object({ reason: z.string().trim().max(100).optional() }).strict(), req.body);
+  if (String(thread.first_post_id) === String(post.id) && !can(me, 'mod.delete_any')) await T.assertCanDeleteOwnThread(me, thread);
   const result = await db.tx(async (q) => {
     if (String(thread.first_post_id) === String(post.id)) {
       // Deleting the first post removes the whole thread (soft delete).
@@ -94,7 +96,10 @@ router.put('/posts/:id/reaction', limits.write, async (req, res) => {
   const { post, thread } = await T.loadPost(idParam(req.params.id), me);
   if (post.deleted_at) throw notFound('Post not found.');
   if (isOwn(post, me)) throw forbidden('You can\'t react to your own content.');
-  const { reaction } = parse(z.object({ reaction: z.enum(T.REACTIONS) }).strict(), req.body);
+  const { reaction } = parse(z.object({ reaction: z.enum([...T.REACTIONS, ...T.VIP_REACTIONS]) }).strict(), req.body);
+  if (T.VIP_REACTIONS.includes(reaction) && !(me.vip && me.vip.customReactions)) {
+    throw new HttpError(403, 'vip_required', 'Custom reactions are a VIP+ benefit.');
+  }
   await db.tx(async (q) => {
     const prev = await q.one('SELECT reaction FROM reactions WHERE post_id = $1 AND user_id = $2', [post.id, me.id]);
     await q.query(`INSERT INTO reactions (post_id, user_id, reaction) VALUES ($1, $2, $3)

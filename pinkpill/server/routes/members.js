@@ -5,6 +5,7 @@ const { z, parse, idParam, content } = require('../lib/validate');
 const { can, assertCan, requireUser } = require('../lib/permissions');
 const { summaries } = require('../lib/users');
 const { visibleForumIds } = require('../lib/forums');
+const vip = require('../lib/vip');
 const { forbidden, notFound } = require('../lib/errors');
 const { assertSafeContent } = require('../lib/content');
 const { notify, notifyMentions } = require('../lib/notify');
@@ -123,12 +124,21 @@ router.get('/members/by-name/:name', async (req, res) => {
   res.json({ id: String(u.id) });
 });
 
+/* Vanity profile URLs resolve only while the owner's VIP membership includes them. */
+router.get('/members/by-vanity/:slug', async (req, res) => {
+  const slug = String(req.params.slug).toLowerCase();
+  if (!/^[a-z0-9][a-z0-9_-]{2,29}$/.test(slug)) throw notFound('Member not found.');
+  const u = await db.one(`SELECT u.id FROM profiles p JOIN users u ON u.id = p.user_id WHERE p.vanity = $1 AND u.status <> 'deleted'`, [slug]);
+  if (!u || !(await vip.entitlementsOf(u.id)).vanityCooldownDays) throw notFound('Member not found.');
+  res.json({ id: String(u.id) });
+});
+
 /* ---------- profile ---------- */
 
 router.get('/members/:id', async (req, res) => {
   const m = await loadMember(req.params.id);
   const [user] = Object.values(await summaries([m.id]));
-  const p = await db.one(`SELECT p.bio, p.website, p.birthday, p.banner_id, pr.allow_dms, pr.allow_profile_posts
+  const p = await db.one(`SELECT p.bio, p.website, p.birthday, p.banner_id, p.vanity::text AS vanity, pr.allow_dms, pr.allow_profile_posts
     FROM profiles p JOIN user_preferences pr ON pr.user_id = p.user_id WHERE p.user_id = $1`, [m.id]);
   const deleted = m.status === 'deleted';
   const me = req.user;
@@ -143,6 +153,7 @@ router.get('/members/:id', async (req, res) => {
       // Only month/day are public; the year stays private.
       birthday: p.birthday ? { month: p.birthday.getUTCMonth() + 1, day: p.birthday.getUTCDate() } : null,
       bannerUrl: p.banner_id ? '/media/' + p.banner_id : null,
+      vanity: p.vanity && user.vip && (await vip.entitlementsOf(m.id)).vanityCooldownDays ? p.vanity : null,
     },
     counts: {
       threads: (await db.one('SELECT count(*)::int AS n FROM threads WHERE author_id = $1 AND deleted_at IS NULL', [m.id])).n,

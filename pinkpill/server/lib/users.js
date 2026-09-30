@@ -1,6 +1,7 @@
 'use strict';
 const db = require('../db');
 const { rankFor, byId } = require('./trophies');
+const vip = require('./vip');
 
 const ONLINE_MS = 15 * 60 * 1000;
 const avatarUrl = (id) => (id ? '/media/' + id : null);
@@ -20,12 +21,13 @@ async function summaries(ids, q = db) {
     FROM users u JOIN roles r ON r.id = u.role_id
     LEFT JOIN profiles p ON p.user_id = u.id LEFT JOIN user_preferences pr ON pr.user_id = u.id
     WHERE u.id = ANY($1::bigint[])`, [ids]);
+  const styles = await vip.publicStyles(rows.filter((r) => r.status !== 'deleted').map((r) => r.id), q);
   const out = {};
-  rows.forEach((r) => { out[r.id] = toSummary(r); });
+  rows.forEach((r) => { out[r.id] = toSummary(r, styles[String(r.id)] || null); });
   return out;
 }
 
-function toSummary(r) {
+function toSummary(r, vipStyle) {
   const deleted = r.status === 'deleted';
   const visibleOnline = r.show_online;
   const points = (r.trophies || []).reduce((a, t) => a + (byId[t] ? byId[t].points : 0), 0);
@@ -45,6 +47,8 @@ function toSummary(r) {
     lastSeenAt: visibleOnline ? r.last_seen_at : null,
     online: !deleted && visibleOnline && Date.now() - new Date(r.last_seen_at).getTime() < ONLINE_MS,
     banned: r.banned,
+    // VIP decoration, computed from active entitlements only (null for non-VIP and expired members).
+    vip: deleted ? null : vipStyle,
     stats: { posts: r.post_count, reactionScore: r.reaction_score, rep: r.rep, points, followers: r.followers },
   };
 }

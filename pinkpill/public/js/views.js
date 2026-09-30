@@ -61,7 +61,7 @@
     const lp = s.lastPost, lu = lp && U(lp.userId);
     const subs = all.filter((c) => c.parentId === f.id).sort((a, b) => a.position - b.position);
     return '<div class="node' + (s.unread ? ' node--unread' : '') + '"><div class="node-icon">' + esc(f.icon) + '</div>' +
-      '<div class="node-main"><a class="node-title" href="#/forums/' + f.id + '">' + esc(f.title) + '</a>' + (f.membersOnly ? ' <span class="badge" title="Only visible to logged-in members">🔒 Members only</span>' : '') + '<div class="node-desc">' + esc(f.description) + '</div>' +
+      '<div class="node-main"><a class="node-title" href="#/forums/' + f.id + '">' + esc(f.title) + '</a>' + (f.vipOnly ? ' <span class="badge badge--vip" title="Only visible to VIP members">👑 VIP only</span>' : f.membersOnly ? ' <span class="badge" title="Only visible to logged-in members">🔒 Members only</span>' : '') + '<div class="node-desc">' + esc(f.description) + '</div>' +
       (subs.length ? '<div class="node-subs">' + subs.map((c) => '<a href="#/forums/' + c.id + '" class="' + (c.stats && c.stats.unread ? 'unread' : '') + '">' + esc(c.icon) + ' ' + esc(c.title) + '</a>').join('') + '</div>' : '') + '</div>' +
       '<dl class="node-stats"><div><dt>Threads</dt><dd>' + num(s.threads) + '</dd></div><div><dt>Messages</dt><dd>' + num(s.messages) + '</dd></div></dl>' +
       '<div class="node-last">' + (lp ? avatar(lu, 's') + '<div><a href="#/threads/' + lp.threadId + '/post-' + lp.postId + '" class="node-last-title">' + prefix(lp.prefix) + esc(lp.threadTitle) + '</a><div class="small muted">' + time(lp.at) + ' · ' + username(lu) + '</div></div>' : '<span class="muted">None</span>') + '</div></div>';
@@ -117,7 +117,8 @@
       (d.canPost ? '<a class="btn btn-primary" href="#/post-thread/' + f.id + '">Post thread</a>' : (f.staffOnly ? '<span class="muted small">Only staff can post here.</span>' : (!u ? '<a class="btn btn-primary" href="#/login">Log in to post</a>' : ''))) + '</div></div>';
     if (d.subforums.length) html += '<section class="block node-cat"><h2 class="block-head block-head--cat" data-collapse>Sub-forums</h2><div class="block-body">' + d.subforums.map((s) => nodeRow(s, d.subforums.flatMap((x) => x.children || []))).join('') + '</div></section>';
     if (f.notice) html += '<div class="notice">' + esc(f.notice) + (f.id === 'f-advice' ? ' <a href="#/help/resources">Support resources</a>' : '') + '</div>';
-    if (f.membersOnly) html += '<div class="notice">🔒 <b>Private forum.</b> Threads here are only visible to logged-in members. They don\'t appear to guests, in guest searches or in public activity feeds.</div>';
+    if (f.vipOnly) html += '<div class="notice notice--vip">👑 <b>VIP Supporters forum.</b> Only members with an active VIP membership (and staff) can see and post here. Thank you for supporting PinkPill!</div>';
+    else if (f.membersOnly) html += '<div class="notice">🔒 <b>Private forum.</b> Threads here are only visible to logged-in members. They don\'t appear to guests, in guest searches or in public activity feeds.</div>';
     if (f.ratingEnabled) html += '<div class="notice"><b>Rating rules:</b> feedback is opt-in and must be constructive. Point out strengths, suggest actionable changes. No insults, no "it\'s over", no comments on things people can\'t change. Violations = ban.</div>';
     html += '<form class="filter-bar" data-form="thread-filter" data-forum="' + f.id + '">' +
       '<label>Prefix <select name="prefix"><option value="">Any</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '"' + (p.id === pfx ? ' selected' : '') + '>' + esc(p.label) + '</option>').join('') + '</select></label>' +
@@ -139,7 +140,7 @@
   function reactionSummary(target, kind) {
     const list = target.reactions || [];
     if (!list.length) return '';
-    const types = [...new Set(list.map((r) => r.reaction))].map((r) => PP.REACTIONS.find((x) => x.id === r)).filter(Boolean);
+    const types = [...new Set(list.map((r) => r.reaction))].map(PP.reactionDef).filter(Boolean);
     const u = me();
     const names = list.map((r) => (u && r.userId === u.id ? 'You' : (U(r.userId) || {}).username)).filter(Boolean);
     names.sort((a) => (a === 'You' ? -1 : 0));
@@ -148,10 +149,11 @@
     return '<button class="reactions-bar" data-act="reactors" data-kind="' + kind + '" data-id="' + target.id + '"><span class="reaction-emojis">' + types.map((r) => r.emoji).join('') + '</span> ' + esc(text) + '</button>';
   }
 
-  function reactButton(target, kind, mine) {
-    const def = PP.REACTIONS.find((r) => r.id === mine);
+  function reactButton(target, kind, mine, vipReactions) {
+    const def = PP.reactionDef(mine);
+    const list = vipReactions ? PP.REACTIONS.concat(PP.VIP_REACTIONS) : PP.REACTIONS;
     return '<span class="react-wrap"><button class="action' + (mine ? ' action--active' : '') + '" data-act="react" data-kind="' + kind + '" data-id="' + target.id + '" data-mine="' + (mine || '') + '">' + (def ? def.emoji + ' ' + def.label : '👍 Like') + '</button>' +
-      '<span class="react-picker">' + PP.REACTIONS.map((r) => '<button data-act="react" data-kind="' + kind + '" data-id="' + target.id + '" data-r="' + r.id + '" data-mine="' + (mine || '') + '" title="' + r.label + '">' + r.emoji + '</button>').join('') + '</span></span>';
+      '<span class="react-picker">' + list.map((r) => '<button' + (r.vip ? ' class="react-vip"' : '') + ' data-act="react" data-kind="' + kind + '" data-id="' + target.id + '" data-r="' + r.id + '" data-mine="' + (mine || '') + '" title="' + r.label + (r.vip ? ' (VIP+)' : '') + '">' + r.emoji + '</button>').join('') + '</span></span>';
   }
 
   function authorPanel(a) {
@@ -178,7 +180,9 @@
     const u = me(), th = d.thread, perm = d.permissions;
     const own = u && p.authorId === u.id;
     const mq = (PP.multiQuote || []).includes(p.id);
-    const canEdit = (own && perm.editOwn) || perm.editAny;
+    // The server enforces the edit window; this only hides the button once it has passed.
+    const inWindow = !perm.editWindowMinutes || Date.now() - new Date(p.createdAt).getTime() < perm.editWindowMinutes * 60000;
+    const canEdit = (own && perm.editOwn && inWindow) || perm.editAny;
     const canDelete = (own && perm.deleteOwn) || perm.deleteAny;
     const showSig = a && a.signature && (!u || u.prefs.showSignatures);
     return authorPanel(a) + '<div class="message-main"><header class="message-attribution"><a href="#/threads/' + th.id + '/post-' + p.id + '" class="muted small">' + time(p.createdAt) + '</a>' +
@@ -196,7 +200,7 @@
       (perm.warn && a && !own && !a.deleted ? '<button class="action" data-act="warn" data-id="' + a.id + '">Warn</button>' : '') +
       '</div><div class="message-actions">' +
       (u && !own && perm.rep ? (p.rep.mine ? '<span class="action action--active" title="You already gave rep for this post">⚖ Repped</span>' : '<button class="action" data-act="rep" data-id="' + p.id + '" title="Give reputation">⚖ Rep</button>') : '') +
-      (u && !own && perm.react ? reactButton(p, 'post', p.myReaction) : '') +
+      (u && !own && perm.react ? reactButton(p, 'post', p.myReaction, perm.vipReactions) : '') +
       (perm.reply ? '<button class="action" data-act="mq" data-id="' + p.id + '">' + (mq ? '− Quote' : '+ Quote') + '</button><button class="action" data-act="quote" data-id="' + p.id + '">Reply</button>' : '') +
       '</div></footer>' + reactionSummary(p, 'post') + '</div>';
   }
@@ -401,7 +405,9 @@
     const m = d.user, perm = d.permissions, s = m.stats;
     const banner = d.profile.bannerUrl && PP.safeUrl(d.profile.bannerUrl) ? ' style="--banner:url(' + esc(d.profile.bannerUrl) + ')"' : '';
     let head = '<section class="block profile-head"' + banner + '><div class="profile-banner"></div><div class="profile-head-body">' + avatar(m, 'xl') +
-      '<div class="grow"><h1>' + esc(m.username) + (m.banned ? ' <span class="badge badge--red">Banned</span>' : '') + '</h1><div class="muted">' + userTitle(m) + '</div>' + ui.roleBanner(m) +
+      '<div class="grow"><h1><span class="' + ui.vipName(m).cls + '"' + (ui.vipName(m).style ? ' style="' + ui.vipName(m).style + '"' : '') + '>' + esc(m.username) + '</span>' + ui.verifiedBadge(m) + (m.banned ? ' <span class="badge badge--red">Banned</span>' : '') + '</h1><div class="muted">' + userTitle(m) + '</div>' + ui.roleBanner(m) +
+      (m.vip ? '<div class="vip-chip">👑 ' + esc(m.vip.label) + (m.vip.lifetime ? ' · Lifetime' : '') + '</div>' : '') +
+      (d.profile.vanity ? '<div class="small muted">🔗 <a href="#/u/' + encodeURIComponent(d.profile.vanity) + '">' + esc(location.origin) + '/u/' + esc(d.profile.vanity) + '</a></div>' : '') +
       '<div class="small muted">' + (m.location ? '📍 ' + esc(m.location) + ' · ' : '') + 'Joined ' + fullDate(m.joinedAt) + (m.online ? ' · <span class="online-dot"></span> Online now' : m.lastSeenAt ? ' · Last seen ' + timeAgo(m.lastSeenAt) : '') + '</div>' +
       '<dl class="pairs pairs--row"><div><dt>Messages</dt><dd>' + num(s.posts) + '</dd></div><div><dt>Reaction score</dt><dd>' + num(s.reactionScore) + '</dd></div><div><dt>Reputation</dt><dd><a href="#/members/' + m.id + '/reputation">' + repBadge(s.rep) + '</a> <span class="small muted">' + store.repLevel(s.rep).label + '</span></dd></div><div><dt>Points</dt><dd><a href="#/members/' + m.id + '/trophies">' + s.points + '</a></dd></div><div><dt>Followers</dt><dd><a href="#/members/' + m.id + '/followers">' + s.followers + '</a></dd></div></dl>' +
       (d.ban ? '<div class="notice notice--error small">Banned: ' + esc(d.ban.reason) + (d.ban.expiresAt ? ' (until ' + esc(fullDate(d.ban.expiresAt)) + ')' : '') + '</div>' : '') + '</div>' +
@@ -460,7 +466,7 @@
 
   function login(_, q) {
     const ret = q.get('return') || '#/';
-    const html = '<div class="auth-wrap"><form class="block form" data-form="login" data-return="' + esc(ret) + '"><h2 class="block-head">Log in</h2><div class="block-body">' +
+    const html = '<div class="auth-wrap">' + (/^#\/(vip|account\/(vip|purchases))/.test(ret) ? '<div class="notice notice--vip">👑 Please log in to view VIP memberships.</div>' : '') + '<form class="block form" data-form="login" data-return="' + esc(ret) + '"><h2 class="block-head">Log in</h2><div class="block-body">' +
       '<label class="field"><span>Your name or email address</span><input name="login" autocomplete="username" required maxlength="254"></label>' +
       '<label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>' +
       '<label class="check"><input type="checkbox" name="stay" checked> Stay logged in</label>' +
@@ -520,7 +526,7 @@
     const u = me();
     if (!u) return loginRequired();
     tab = tab || 'details';
-    const tabs = [['details', 'Account details'], ['personal', 'Personal details'], ['security', 'Password & security'], ['privacy', 'Privacy'], ['preferences', 'Preferences'], ['signature', 'Signature'], ['following', 'Following'], ['ignoring', 'Ignoring'], ['bookmarks', 'Bookmarks'], ['watched', 'Watched threads'], ['warnings', 'Warnings'], ['data', 'Your data']];
+    const tabs = [['details', 'Account details'], ['personal', 'Personal details'], ['security', 'Password & security'], ['privacy', 'Privacy'], ['preferences', 'Preferences'], ['signature', 'Signature'], ['following', 'Following'], ['ignoring', 'Ignoring'], ['bookmarks', 'Bookmarks'], ['watched', 'Watched threads'], ['warnings', 'Warnings'], ['vip', '👑 VIP membership'], ['purchases', 'Purchases'], ['data', 'Your data']];
     let body = '';
     if (tab === 'details') {
       body = '<form class="block form" data-form="account-details"><div class="block-body"><dl class="pairs"><div><dt>User name</dt><dd>' + esc(u.username) + '</dd></div><div><dt>Joined</dt><dd>' + fullDate(u.joinedAt) + '</dd></div><div><dt>User group</dt><dd>' + esc(PP.ROLE_TITLES[u.role] || u.role) + '</dd></div><div><dt>Email status</dt><dd>' + (u.emailVerified ? 'Verified ✓' : 'Not verified <button type="button" class="btn btn-sm" data-act="resend-verification">Resend link</button>') + '</dd></div></dl>' +
@@ -576,6 +582,10 @@
     } else if (tab === 'warnings') {
       const r = await api.get('/account/warnings');
       body = '<section class="block"><div class="block-body">' + (r.warnings.length ? r.warnings.map((w) => '<div class="activity-item"><div><b>' + esc(w.reason) + '</b> <span class="badge">' + w.points + ' pt</span><div class="small muted">' + time(w.at) + '</div></div></div>').join('') : '<div class="empty">You have no warnings. 💗</div>') + '</div></section>';
+    } else if (tab === 'vip') {
+      body = await PP.vipViews.accountVip();
+    } else if (tab === 'purchases') {
+      body = await PP.vipViews.accountPurchases();
     } else if (tab === 'data') {
       body = '<section class="block"><div class="block-body"><p>Download a copy of the content you\'ve posted.</p><a class="btn" href="/api/account/export" download>Download my data</a>' +
         '<hr><p>Deleting your account removes your profile, email and password. Your posts remain and are shown as “Deleted member”.</p><button class="btn btn-danger" data-act="delete-account">Delete my account</button></div></section>';
@@ -588,7 +598,7 @@
 
   /* ---------- alerts ---------- */
 
-  function alertIcon(t) { return { reply: '💬', mention: '@', quote: '❝', reaction: '💖', follow: '➕', 'follow-thread': '🧵', trophy: '🏆', conversation: '✉', 'profile-post': '📝', 'profile-comment': '💭', report: '🚩', 'report-resolved': '✅', warning: '⚠', welcome: '🌸', rep: '⚖', moderation: '🛡' }[t] || '🔔'; }
+  function alertIcon(t) { return { reply: '💬', mention: '@', quote: '❝', reaction: '💖', follow: '➕', 'follow-thread': '🧵', trophy: '🏆', conversation: '✉', 'profile-post': '📝', 'profile-comment': '💭', report: '🚩', 'report-resolved': '✅', warning: '⚠', welcome: '🌸', rep: '⚖', moderation: '🛡', vip: '👑' }[t] || '🔔'; }
 
   function alertRow(a) {
     const from = a.actorId && U(a.actorId);
@@ -732,6 +742,7 @@
         '<dt>Where can I ask for advice about my life or dating?</dt><dd>Post in <a href="#/forums/f-advice">Situations &amp; Dating Advice</a>. Never post other people\'s personal details.</dd>' +
         '<dt>Why can\'t I post yet?</dt><dd>New accounts must verify their email address first. Check your inbox (and spam folder) for the link, or resend it from Account details.</dd>' +
         '<dt>How do I ignore someone?</dt><dd>Open their profile → ⋯ → Ignore. Their posts are hidden and they can\'t message you or post on your profile.</dd>' +
+        '<dt>What is VIP?</dt><dd>An optional paid membership that supports PinkPill and unlocks perks such as VIP username colors, the VIP Supporters forum and larger conversations. See <a href="#/vip">VIP</a> (log in first). Monthly packages are one-time payments for one month and don\'t renew automatically.</dd>' +
         '<dt>Can I delete my account?</dt><dd>Yes: Account → Your data.</dd></dl>',
       bbcode: '<table class="table"><thead><tr><th>You type</th><th>You get</th></tr></thead><tbody>' + bbExamples.map((e) => '<tr><td><code>' + esc(e).replace(/\n/g, '<br>') + '</code></td><td class="bbwrap">' + bbcode(e) + '</td></tr>').join('') + '<tr><td><code>[img]https://…[/img]</code></td><td>An image (or use 📎 in the editor to upload one)</td></tr></tbody></table>',
       reactions: '<table class="table"><tbody>' + PP.REACTIONS.map((r) => '<tr><td style="font-size:1.6em">' + r.emoji + '</td><td><b>' + r.label + '</b></td><td class="muted">' + (r.score > 0 ? 'Adds +' + r.score + ' to reaction score' : 'Neutral') + '</td></tr>').join('') + '</tbody></table>',
@@ -771,6 +782,7 @@
     if (P('admin.forums')) tabs.push(['forums', 'Forums']);
     if (P('admin.users')) tabs.push(['roles', 'Roles & permissions']);
     if (P('admin.settings')) tabs.push(['settings', 'Settings']);
+    if (P('admin.vip')) tabs.push(['vip', '👑 VIP']);
     if (P('admin.import')) tabs.push(['data', 'Data']);
     tab = tab || tabs[0][0];
     if (!tabs.some((t) => t[0] === tab)) return errorView('You do not have permission to view this page.');
@@ -814,7 +826,7 @@
       PP.adminForums = d;
       body = d.categories.map((c) => '<section class="block"><h3 class="block-head">' + esc(c.title) + ' <button class="btn btn-sm" data-act="edit-category" data-id="' + c.id + '">Edit</button></h3><div class="block-body">' +
         d.forums.filter((f) => f.categoryId === c.id && !f.parentId).sort((a, b) => a.position - b.position).flatMap((f) => { const out = []; const walk = (x, depth) => { out.push([x, depth]); d.forums.filter((ch) => ch.parentId === x.id).sort((a, b) => a.position - b.position).forEach((ch) => walk(ch, depth + 1)); }; walk(f, 0); return out; })
-          .map(([f, depth]) => '<div class="member-row" style="padding-left:' + depth * 28 + 'px">' + (depth ? '<span class="muted">↳</span>' : '') + '<span class="node-icon">' + esc(f.icon) + '</span><div class="grow"><b>' + esc(f.title) + '</b> <code class="small">' + esc(f.id) + '</code><div class="small muted">' + esc(f.description) + (f.staffOnly ? ' · staff-only posting' : '') + (f.ratingEnabled ? ' · rating forum' : '') + (f.membersOnly ? ' · 🔒 members only' : '') + '</div></div><button class="btn btn-sm" data-act="edit-forum" data-id="' + f.id + '">Edit</button> <button class="btn btn-sm btn-danger" data-act="delete-forum" data-id="' + f.id + '">Delete</button></div>').join('') + '</div></section>').join('') +
+          .map(([f, depth]) => '<div class="member-row" style="padding-left:' + depth * 28 + 'px">' + (depth ? '<span class="muted">↳</span>' : '') + '<span class="node-icon">' + esc(f.icon) + '</span><div class="grow"><b>' + esc(f.title) + '</b> <code class="small">' + esc(f.id) + '</code><div class="small muted">' + esc(f.description) + (f.staffOnly ? ' · staff-only posting' : '') + (f.ratingEnabled ? ' · rating forum' : '') + (f.membersOnly ? ' · 🔒 members only' : '') + (f.vipOnly ? ' · 👑 VIP only' : '') + '</div></div><button class="btn btn-sm" data-act="edit-forum" data-id="' + f.id + '">Edit</button> <button class="btn btn-sm btn-danger" data-act="delete-forum" data-id="' + f.id + '">Delete</button></div>').join('') + '</div></section>').join('') +
         '<div class="form-actions"><button class="btn btn-primary" data-act="edit-forum">✚ Add forum</button> <button class="btn" data-act="edit-category">✚ Add category</button></div>';
     } else if (tab === 'roles') {
       const d = await api.get('/admin/roles');
@@ -834,6 +846,8 @@
         '<label class="field"><span>Messages required to give negative rep</span><input type="number" name="neg_rep_min_posts" min="0" max="10000" value="' + Number(s.neg_rep_min_posts) + '"></label>' +
         '<label class="field"><span>Maximum poll options</span><input type="number" name="max_poll_options" min="2" max="50" value="' + Number(s.max_poll_options) + '"></label>' +
         '<div class="form-actions"><button class="btn btn-primary">Save settings</button></div></div></form>';
+    } else if (tab === 'vip') {
+      body = await PP.vipViews.adminVip(q);
     } else if (tab === 'data') {
       let legacy = null;
       try { legacy = localStorage.getItem('pinkpill.db.v1'); } catch (e) { /* ignore */ }

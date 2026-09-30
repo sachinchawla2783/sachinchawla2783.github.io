@@ -87,6 +87,13 @@ into the Render dashboard (or GitHub Actions secrets for backups). Never put rea
 | `TURNSTILE_SECRET_KEY` | Server-side token verification | **Yes** | Same widget | Strongly recommended (both or neither) |
 | `ADMIN_CLAIM_TOKEN` | One-time token to claim the first super administrator (≥ 24 characters) | **Yes** | Generate locally (below) | First deploy only; **delete afterwards** |
 | `TRUST_PROXY` | Number of proxies in front of the app | No | Set to `1` by `render.yaml` (Render's proxy) | Preset |
+| `STRIPE_SECRET_KEY` | VIP card payments (Stripe Checkout) | **Yes** | Stripe → Developers → API keys (secret key) | Optional (card shows "not available" without it) |
+| `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhook signatures | **Yes** | Stripe → Developers → Webhooks → your endpoint → signing secret | With `STRIPE_SECRET_KEY` |
+| `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` | VIP PayPal payments | Secret: **Yes** | PayPal Developer → Apps & Credentials | Optional (all three together) |
+| `PAYPAL_WEBHOOK_ID` | Verifies PayPal webhooks | No | PayPal Developer → your app → Webhooks | With the PayPal keys |
+| `PAYPAL_ENV` | `live` or `sandbox` (default) | No | You | With the PayPal keys |
+| `COINBASE_COMMERCE_API_KEY` | VIP crypto payments | **Yes** | Coinbase Commerce → Settings → API keys | Optional |
+| `COINBASE_COMMERCE_WEBHOOK_SECRET` | Verifies Coinbase webhooks | **Yes** | Coinbase Commerce → Settings → Webhook subscriptions → shared secret | With the Coinbase key |
 
 Reviewed and **not used** by this app (do not create them): `SESSION_SECRET` and `CSRF_SECRET`
 (sessions and CSRF tokens are random per-session values stored hashed in PostgreSQL, so there is no
@@ -101,6 +108,10 @@ Advanced overrides you should normally leave unset: `CANONICAL_REDIRECT`, `COOKI
 `REQUIRE_EMAIL_VERIFICATION`, `DATABASE_SSL`, `DATABASE_SSL_REJECT_UNAUTHORIZED`, `HOST`, `CORS_ORIGINS`,
 `S3_*` (non-R2 S3 only), `MEDIA_SIGNING_SECRET` and `ALLOW_LOCAL_STORAGE_IN_PRODUCTION` (local driver
 only; never on Render).
+
+Payment variables are not in `render.yaml`; add the ones you use in Render → Environment. A provider
+with only some of its variables set also stops startup (it could take money without being able to
+confirm it). See Section 8a.
 
 The app **refuses to start in production** if the canonical URL isn't `https://`, secure cookies are
 disabled, email isn't Resend, `RESEND_API_KEY` is missing, `MAIL_FROM` is still a localhost address, R2
@@ -263,6 +274,46 @@ email* later.
 The widget script is loaded only on pages that show it. The CSP allows `https://challenges.cloudflare.com`
 for scripts and frames for this reason. Tokens are verified server-side on registration and password-reset
 requests; the honeypot and rate limits remain in place.
+
+## 8a. VIP memberships and payments
+
+VIP is a paid membership. Packages, prices, benefits, colors and frames live in the database and are
+edited in **Admin & moderator panel → 👑 VIP**; nothing is priced in frontend code. The initial prices
+are VIP $8/month, VIP+ $17/month, Lifetime VIP $82, Lifetime VIP+ $108 and Lifetime VIP+ Custom Color
+$208. Annual prices start unset (not offered) until you enter them.
+
+**How payment works.** The browser only chooses a package, billing period, payment method and style
+options. The server calculates the price, creates a pending order and sends the member to the
+provider's hosted payment page. The membership is activated only after the payment is confirmed
+server-side, either by a signed webhook or by the server asking the provider for the order status.
+Activation happens in one database transaction, and webhook deliveries are de-duplicated. Monthly
+packages are one-time payments for one month (or 12 months); they don't renew automatically. There is
+no pro-rated credit for upgrades.
+
+| Method | Provider | Needs | Webhook URL to register at the provider |
+|---|---|---|---|
+| Credit Card | Stripe Checkout | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | `https://YOURDOMAIN/api/payments/webhooks/stripe` (events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`) |
+| PayPal | PayPal Orders v2 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENV` | `https://YOURDOMAIN/api/payments/webhooks/paypal` (events: `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`) |
+| Cryptocurrency | Coinbase Commerce | `COINBASE_COMMERCE_API_KEY`, `COINBASE_COMMERCE_WEBHOOK_SECRET` | `https://YOURDOMAIN/api/payments/webhooks/coinbase` (events: `charge:confirmed`, `charge:resolved`, `charge:failed`) |
+| Wallet Balance | Internal | Nothing | — (charged inside the same transaction that activates the membership) |
+
+A method without its variables shows as "not available yet" and can't be used. Admins can also switch
+methods off in VIP → Settings. Start with test/sandbox keys, make a test purchase, then switch to live
+keys. Check each provider's current fees and terms; payment providers are not free services.
+Coinbase Commerce payments can't be refunded automatically: refund in Coinbase, then use "mark as
+refunded" in the admin panel. Wallet balances are credited by admins (VIP → Wallets); there is no
+self-service top-up.
+
+**Rule changes for members without VIP** (all adjustable in VIP → Settings; 0 = unlimited where noted):
+- posts can be edited for 60 minutes after posting (VIP+ gets 12 hours; moderators are exempt);
+- conversations can include at most 10 people in total (VIP 15, VIP+ 25);
+- your own threads in rating forums can only be deleted while they have no replies (VIP: any time).
+
+VIP-only forums (VIP Supporters, `f-vip`) are hidden from everyone without an active VIP membership,
+except staff. Expired, revoked and refunded memberships lose every benefit immediately. Purchase and
+membership history is kept. There is no advertising system; `showAds` in the session tells a future ad
+slot whether to render. Every purchase, gift, refund, activation, expiry, admin grant, revoke,
+extension, price change and payment failure is written to the audit log.
 
 ## 9. First administrator (no hard-coded admin)
 1. Deploy with `ADMIN_CLAIM_TOKEN` set (Step 6).
@@ -465,6 +516,13 @@ own copies, **never in Git** (`backups/`, `*.dump`, `*.dump.enc` are git-ignored
 - [ ] S8 A backup was taken (`npm run db:backup` or the workflow) and restored into a test database.
 - [ ] S9 Copy an image's signed R2 URL (from the redirect), wait > `MEDIA_URL_TTL_SECONDS`, open it again → access denied.
 - [ ] S10 The R2 bucket has no public access (Cloudflare → R2 → bucket → Settings).
+
+**VIP** (with test/sandbox payment keys)
+- [ ] V1 Logged out, click 👑 VIP → the login page (no prices shown); after login you land on the VIP page.
+- [ ] V2 Buy VIP with a test card → after returning, the membership is active, VIP Supporters appears, the username color shows.
+- [ ] V3 Stripe → Webhooks shows successful (200) deliveries; a test refund removes the membership.
+- [ ] V4 Gift a package to a second account → it activates for them only after payment and they get an alert.
+- [ ] V5 A member without VIP gets 404 for `/#/forums/f-vip`.
 
 **Domain**
 - [ ] N1 `https://YOURDOMAIN` and `https://www.YOURDOMAIN` both have valid certificates.
