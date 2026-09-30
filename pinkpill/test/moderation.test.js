@@ -67,26 +67,24 @@ test('reports: create, visible to staff only, resolve with audit + notification'
   assert.ok((await bob.get('/api/notifications')).body.notifications.some((n) => n.type === 'report-resolved'));
 });
 
-test('safety filter auto-reports dangerous content and returns crisis flags', async () => {
-  const r = await alice.post('/api/forums/f-body/threads', { title: 'Question about bonesmashing', content: 'has anyone tried it' });
-  assert.equal(r.status, 201);
-  assert.deepEqual(r.body.safety.danger, ['bonesmash']);
-  const auto = await db.one("SELECT reporter_id FROM reports WHERE content_id = $1 AND content_type = 'post'", [r.body.postId]);
-  assert.equal(auto.reporter_id, null);
-  const c = await alice.post(`/api/threads/${r.body.thread.id}/posts`, { content: 'honestly I want to die' });
-  assert.ok(c.body.safety.crisis.length > 0);
-  // Ordinary skincare vocabulary is not flagged.
-  const ok = await alice.post('/api/forums/f-skin/threads', { title: 'Retinol purging timeline', content: 'How long did your purging phase last?' });
-  assert.deepEqual(ok.body.safety.danger, []);
-  // Eating/diet topics are not auto-flagged or auto-reported (site policy); members can still report them.
-  for (const text of ['I make myself throw up after meals', 'pro-ana thinspo meanspo', 'dry fast and laxative experiences', 'purging after eating']) {
-    const ed = await alice.post(`/api/threads/${ok.body.thread.id}/posts`, { content: text });
-    assert.equal(ed.status, 201);
-    assert.deepEqual(ed.body.safety.danger, [], text);
-    assert.equal(await db.one("SELECT 1 FROM reports WHERE content_type = 'post' AND content_id = $1", [ed.body.post.id]), null, 'no automatic report: ' + text);
+test('no automatic flagging: posts are never auto-reported and no crisis popup data is returned', async () => {
+  const texts = ['Question about bonesmashing', 'DIY filler and diy botox injections', 'mercury cream and bleach your skin',
+    'honestly I want to die', 'I make myself throw up after meals', 'pro-ana thinspo'];
+  const t = await alice.post('/api/forums/f-body/threads', { title: texts[0], content: texts[1] });
+  assert.equal(t.status, 201);
+  assert.equal(t.body.safety, undefined);
+  for (const content of texts.slice(2)) {
+    const r = await alice.post(`/api/threads/${t.body.thread.id}/posts`, { content });
+    assert.equal(r.status, 201);
+    assert.equal(r.body.safety, undefined, content);
   }
-  const manual = await bob.post('/api/reports', { type: 'post', id: ok.body.postId, reason: 'Member report still works' });
-  assert.equal(manual.status, 201);
+  const e = await alice.patch(`/api/posts/${t.body.postId}`, { content: 'bonesmash update' });
+  assert.equal(e.status, 200);
+  assert.equal(e.body.safety, undefined);
+  assert.equal((await db.one('SELECT count(*)::int AS n FROM reports WHERE reporter_id IS NULL')).n, 0, 'no automatic reports');
+  // Members can still report content, and moderators see it.
+  assert.equal((await bob.post('/api/reports', { type: 'post', id: t.body.postId, reason: 'Member report still works' })).status, 201);
+  assert.ok((await mod.get('/api/mod/reports')).body.reports.some((r) => r.reason === 'Member report still works'));
 });
 
 test('ban: banned user keeps read access but cannot write; lifted bans restore access', async () => {

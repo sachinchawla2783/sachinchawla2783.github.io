@@ -3,7 +3,7 @@
   'use strict';
   const PP = window.PP;
   const { store, api, esc, ui, views } = PP;
-  const { toast, modal, closeModal, confirmBox, handleSafety } = ui;
+  const { toast, modal, closeModal, confirmBox } = ui;
   const me = () => PP.session.user;
   PP.multiQuote = [];
   PP.ignoring = new Set();
@@ -76,7 +76,6 @@
     else if (path !== lastPath || !out.after) window.scrollTo(0, 0);
     lastPath = path;
     if (out.after) out.after();
-    if (PP.pendingSafety) { handleSafety(PP.pendingSafety); PP.pendingSafety = null; }
   }
   const refresh = () => { PP.invalidateWidgets(); return render(true); };
   const go = (hash) => { if (location.hash === hash) render(); else location.hash = hash; };
@@ -480,7 +479,6 @@
       }
       const r = await api.post('/forums/' + f.dataset.forum + '/threads', { title: d.title, content: d.content, prefix: d.prefix || null, tags: tagsOf(d.tags), poll, ratingEnabled: !!d.rating_enabled, watch: !!d.watch });
       ui.clearDraft(f);
-      PP.pendingSafety = r.safety;
       go('#/threads/' + r.thread.id);
     },
     async reply(f, d) {
@@ -488,10 +486,9 @@
       if (d.rating) body.rating = Number(d.rating);
       const r = await api.post('/threads/' + f.dataset.thread + '/posts', body);
       ui.clearDraft(f);
-      PP.pendingSafety = r.safety;
       go('#/threads/' + f.dataset.thread + '/post-' + r.post.id);
     },
-    async 'edit-post'(f, d) { const r = await api.patch('/posts/' + f.dataset.id, { content: d.content, reason: d.reason || '' }); closeModal(); await refresh(); handleSafety(r.safety); },
+    async 'edit-post'(f, d) { await api.patch('/posts/' + f.dataset.id, { content: d.content, reason: d.reason || '' }); closeModal(); await refresh(); },
     async 'delete-post'(f, d) {
       const r = await api.del('/posts/' + f.dataset.id, { reason: d.reason || '' });
       closeModal(); toast(r.deleted === 'thread' ? 'Thread deleted.' : 'Post deleted.');

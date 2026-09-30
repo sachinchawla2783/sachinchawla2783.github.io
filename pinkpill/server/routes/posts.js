@@ -7,7 +7,6 @@ const { summaries } = require('../lib/users');
 const { forbidden, notFound, invalid, tooMany, HttpError } = require('../lib/errors');
 const { assertSafeContent } = require('../lib/content');
 const { notify } = require('../lib/notify');
-const safety = require('../lib/safety');
 const { checkTrophies } = require('../lib/trophies');
 const { audit } = require('../lib/audit');
 const settings = require('../lib/settings');
@@ -31,16 +30,14 @@ router.patch('/posts/:id', limits.write, async (req, res) => {
   if (!can(me, 'mod.edit_any')) await T.assertWithinEditWindow(me, post);
   const d = parse(z.object({ content: content(20000), reason: z.string().trim().max(100).optional() }).strict(), req.body);
   assertSafeContent(d.content);
-  const check = safety.check(d.content);
   await db.tx(async (q) => {
     await q.query('INSERT INTO post_revisions (post_id, content, editor_id, created_at) VALUES ($1, $2, $3, coalesce($4::timestamptz, $5::timestamptz))',
       [post.id, post.content, post.edited_by || post.author_id, post.edited_at, post.created_at]);
     await q.query('UPDATE posts SET content = $2, edited_at = now(), edited_by = $3, edit_reason = $4 WHERE id = $1', [post.id, d.content, me.id, d.reason || '']);
     await syncRefs(q, 'post', post.id, d.content, post.author_id);
     if (!own) await audit(q, req, 'post.edit', 'post', post.id, { reason: d.reason || '' });
-    await safety.autoReport(q, 'post', post.id, check.danger);
   });
-  res.json({ ok: true, safety: check });
+  res.json({ ok: true });
 });
 
 router.delete('/posts/:id', async (req, res) => {

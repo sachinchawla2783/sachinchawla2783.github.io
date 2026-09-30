@@ -414,7 +414,7 @@ section.block > .table { margin: 0; }
 .faq dt { font-weight: 700; margin-top: 12px; }
 .faq dd { margin: 4px 0 0; }
 .smilies { font-size: 1.8rem; display: flex; flex-wrap: wrap; gap: 8px; }
-.resources li, .crisis li { margin-bottom: 6px; }
+.resources li { margin-bottom: 6px; }
 
 /* auth */
 .auth-wrap { max-width: 460px; margin: 10px auto; }

@@ -200,17 +200,6 @@
     m.querySelector('[data-yes]').addEventListener('click', () => { closeModal(); onYes(); });
   }
 
-  function crisisModal() {
-    modal('You matter 💗', '<div class="crisis"><p>It sounds like you might be going through something really hard. You don\'t have to go through it alone.</p>' +
-      '<ul><li><b>In immediate danger:</b> call your local emergency number.</li><li><b>US:</b> call or text <b>988</b> (Suicide &amp; Crisis Lifeline)</li><li><b>UK &amp; ROI:</b> Samaritans <b>116 123</b></li><li><b>Eating disorder support:</b> NEDA (US) · Beat (UK) 0808 801 0677</li><li><b>Anywhere else:</b> <a href="https://findahelpline.com" target="_blank" rel="noopener">findahelpline.com</a></li></ul>' +
-      '<p>Your post has been published. Members of our community care, and the <a href="#/forums/f-wellbeing" data-close>Mental Health &amp; Confidence</a> forum is here for you.</p><div class="form-actions"><button class="btn btn-primary" data-close>Okay</button></div></div>');
-  }
-
-  function dangerNotice(words) {
-    toast('Heads up: your post mentions something our rules prohibit (' + words.join(', ') + '). It\'s been sent to moderators for review.', 'warn');
-  }
-
-  function handleSafety(s) { if (s && s.crisis && s.crisis.length) crisisModal(); if (s && s.danger && s.danger.length) dangerNotice(s.danger); }
 
   /* ---------- member tooltip ---------- */
 
@@ -243,5 +232,5 @@
     el.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - el.offsetWidth - 8)) + 'px';
   }
 
-  window.PP.ui = { safeColor, vipName, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, handleSafety, bindUserTips, insertAt };
+  window.PP.ui = { safeColor, vipName, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
 })();

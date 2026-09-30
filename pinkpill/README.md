@@ -67,7 +67,7 @@ The API tests cover signup/login/logout, Argon2id hashing, sessions (expiry, rot
 CSRF, email verification, password reset, the full authorization matrix, privilege escalation, IDOR,
 bans and suspensions, forum CRUD, locking/pinning/moving, pagination, reactions, reputation abuse,
 poll vote manipulation, private-message privacy, uploads (disguised scripts, SVG, polyglots, oversize),
-SQL-injection and XSS payloads, rate limiting, the safety filter and the prototype importer.
+SQL-injection and XSS payloads, rate limiting, the absence of automatic flagging, and the prototype importer.
 
 The E2E tests use two independent browser contexts to register (via emailed links), post, reply,
 react, give rep, vote, message privately, attempt to become admin through devtools, moderate and ban,
