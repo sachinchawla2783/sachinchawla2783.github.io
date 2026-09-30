@@ -25,7 +25,7 @@ async function forumStats(user, forums) {
   const direct = await db.many(`SELECT t.forum_id, count(DISTINCT t.id)::int AS threads, count(p.id)::int AS messages
     FROM threads t JOIN posts p ON p.thread_id = t.id AND p.deleted_at IS NULL
     WHERE t.deleted_at IS NULL GROUP BY t.forum_id`);
-  const lasts = await db.many(`SELECT DISTINCT ON (t.forum_id) t.forum_id, t.id, t.title, t.prefix, t.last_post_id, t.last_post_at, p.author_id
+  const lasts = await db.many(`SELECT DISTINCT ON (t.forum_id) t.forum_id, t.id, t.title, t.prefix, t.nsfw, t.last_post_id, t.last_post_at, p.author_id
     FROM threads t LEFT JOIN posts p ON p.id = t.last_post_id WHERE t.deleted_at IS NULL ORDER BY t.forum_id, t.last_post_at DESC`);
   let unread = new Set();
   if (user) {
@@ -48,7 +48,7 @@ async function forumStats(user, forums) {
     }
     out[f.id] = {
       threads, messages, unread: isUnread,
-      lastPost: last && last.last_post_id ? { threadId: String(last.id), threadTitle: last.title, prefix: last.prefix, postId: String(last.last_post_id), at: last.last_post_at, userId: last.author_id } : null,
+      lastPost: last && last.last_post_id ? { threadId: String(last.id), threadTitle: last.title, prefix: last.prefix, nsfw: last.nsfw, postId: String(last.last_post_id), at: last.last_post_at, userId: last.author_id } : null,
     };
   }
   return out;
@@ -94,7 +94,7 @@ async function threadRows(where, params, user, orderSql, limit, offset) {
 
 const threadJson = (t) => ({
   id: String(t.id), forumId: t.forum_id, title: t.title, prefix: t.prefix, authorId: t.author_id, createdAt: t.created_at,
-  sticky: t.sticky, locked: t.locked, ratingEnabled: t.rating_enabled, hasPoll: !!t.has_poll, deleted: !!t.deleted_at,
+  sticky: t.sticky, locked: t.locked, ratingEnabled: t.rating_enabled, hasPoll: !!t.has_poll, deleted: !!t.deleted_at, nsfw: !!t.nsfw,
   replyCount: t.reply_count, viewCount: t.view_count, pages: Math.max(1, Math.ceil((t.reply_count + 1) / T.POSTS_PER_PAGE)),
   lastPost: t.last_post_id ? { id: String(t.last_post_id), at: t.last_post_at, userId: t.last_author_id || null } : null,
   unread: !!t.unread, watched: !!t.watched, tags: t.tags || [],
@@ -189,6 +189,7 @@ const threadSchema = z.object({
   tags: z.array(z.string().max(40)).max(10).optional(),
   poll: pollSchema.nullable().optional(),
   ratingEnabled: z.boolean().optional(),
+  nsfw: z.boolean().optional(),
   watch: z.boolean().optional(),
 }).strict();
 
@@ -206,11 +207,13 @@ router.post('/forums/:id/threads', limits.thread, async (req, res) => {
     if (new Set(d.poll.options.map((o) => o.toLowerCase())).size !== d.poll.options.length) throw invalid('Poll options must be different.');
   }
   assertSafeContent(d.content);
+  if (d.nsfw) await T.assertMayTagNsfw(req.user);
   await T.assertNotFlooding(req.user);
   const tags = normalizeTags(d.tags);
   const result = await db.tx(async (q) => {
-    const t = await q.one(`INSERT INTO threads (forum_id, author_id, title, prefix, rating_enabled) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [f.id, req.user.id, d.title, d.prefix || null, f.rating_enabled || !!d.ratingEnabled]);
+    const t = await q.one(`INSERT INTO threads (forum_id, author_id, title, prefix, rating_enabled, nsfw, nsfw_set_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [f.id, req.user.id, d.title, d.prefix || null, f.rating_enabled || !!d.ratingEnabled, !!d.nsfw, d.nsfw ? 'author' : null]);
+    const shown = (t.nsfw ? '[NSFW] ' : '') + t.title;
     const p = await q.one('INSERT INTO posts (thread_id, author_id, content) VALUES ($1, $2, $3) RETURNING id', [t.id, req.user.id, d.content]);
     await q.query('UPDATE threads SET first_post_id = $2, last_post_id = $2 WHERE id = $1', [t.id, p.id]);
     await syncRefs(q, 'post', p.id, d.content, req.user.id);
@@ -229,8 +232,8 @@ router.post('/forums/:id/threads', limits.thread, async (req, res) => {
     // Threads in VIP-only forums are only announced to people who can open them.
     const vipOnly = isVipForum(await allForums(), f.id);
     if (vipOnly) { const ok = await vip.vipForumAudience(followers.map((x) => x.follower_id), q); followers = followers.filter((x) => ok.has(String(x.follower_id))); }
-    for (const fl of followers) await notify(q, { userId: fl.follower_id, actorId: req.user.id, type: 'follow-thread', text: `${req.user.username} started a new thread: ${t.title}`, link });
-    await notifyMentions(q, { content: d.content, actor: req.user, link: `#/threads/${t.id}/post-${p.id}`, where: t.title, audience: vipOnly ? (ids) => vip.vipForumAudience(ids, q) : null });
+    for (const fl of followers) await notify(q, { userId: fl.follower_id, actorId: req.user.id, type: 'follow-thread', text: `${req.user.username} started a new thread: ${shown}`, link });
+    await notifyMentions(q, { content: d.content, actor: req.user, link: `#/threads/${t.id}/post-${p.id}`, where: shown, audience: vipOnly ? (ids) => vip.vipForumAudience(ids, q) : null });
     await checkTrophies(q, req.user.id);
     return { thread: t, postId: p.id, visibleToGuests };
   });
@@ -354,6 +357,7 @@ router.get('/threads/:id', async (req, res) => {
       // 0 = no limit. The server enforces it; the client only uses it to hide the Edit button.
       editWindowMinutes: me && !can(me, 'mod.edit_any') ? await T.editWindowMinutes(me) : 0,
       vipReactions: !!(me && me.vip && me.vip.customReactions),
+      nsfwLockedByStaff: t.nsfw_set_by === 'staff' && !can(me, 'mod.edit_any'),
     },
     users,
   });
@@ -370,6 +374,7 @@ const threadPatch = z.object({
   forumId: z.string().regex(/^[a-z0-9-]{2,40}$/),
   notify: z.boolean(),
   pollClosed: z.boolean(),
+  nsfw: z.boolean(),
 }).partial().strict();
 
 router.patch('/threads/:id', async (req, res) => {
@@ -380,6 +385,14 @@ router.patch('/threads/:id', async (req, res) => {
   const own = String(t.author_id) === String(me.id);
   const basic = ['title', 'prefix', 'tags', 'pollClosed'].some((k) => k in d);
   if (basic && !((own && can(me, 'post.edit_own')) || can(me, 'mod.edit_any'))) throw forbidden();
+  const staffTag = can(me, 'mod.edit_any');
+  if ('nsfw' in d && d.nsfw !== t.nsfw) {
+    if (!staffTag) {
+      if (!(own && can(me, 'post.edit_own'))) throw forbidden();
+      if (d.nsfw) await T.assertMayTagNsfw(me);
+      else if (t.nsfw_set_by === 'staff') throw forbidden('A moderator tagged this thread NSFW; only staff can remove the tag.');
+    }
+  }
   if ('sticky' in d) assertCan(me, 'mod.sticky');
   if ('locked' in d) assertCan(me, 'mod.lock');
   if ('forumId' in d) {
@@ -394,12 +407,17 @@ router.patch('/threads/:id', async (req, res) => {
     if ('sticky' in d) add('sticky', d.sticky);
     if ('locked' in d) add('locked', d.locked);
     if ('forumId' in d) add('forum_id', d.forumId);
+    if ('nsfw' in d && d.nsfw !== t.nsfw) { add('nsfw', d.nsfw); add('nsfw_set_by', d.nsfw ? (staffTag && !own ? 'staff' : 'author') : null); }
     if (sets.length) await q.query(`UPDATE threads SET ${sets.join(', ')} WHERE id = $1`, vals);
     if ('tags' in d) {
       await q.query('DELETE FROM thread_tags WHERE thread_id = $1', [t.id]);
       for (const tag of normalizeTags(d.tags)) await q.query('INSERT INTO thread_tags (thread_id, tag) VALUES ($1, $2)', [t.id, tag]);
     }
     if ('pollClosed' in d) await q.query(`UPDATE polls SET closes_at = CASE WHEN $2 THEN LEAST(coalesce(closes_at, now()), now()) ELSE NULL END WHERE thread_id = $1`, [t.id, d.pollClosed]);
+    if ('nsfw' in d && d.nsfw !== t.nsfw && (staffTag || !own)) {
+      await audit(q, req, d.nsfw ? 'thread.nsfw_tag' : 'thread.nsfw_untag', 'thread', t.id, { title: t.title });
+      if (!own) await notify(q, { userId: t.author_id, actorId: me.id, type: 'moderation', text: `A moderator ${d.nsfw ? 'tagged' : 'removed the NSFW tag from'} your thread "${t.title}"${d.nsfw ? ' as NSFW' : ''}`, link: `#/threads/${t.id}` });
+    }
     const modFields = ['sticky', 'locked', 'forumId'].filter((k) => k in d);
     const modEdit = basic && !own;
     if (modFields.length || modEdit) {
@@ -487,8 +505,8 @@ router.post('/threads/:id/posts', limits.reply, async (req, res) => {
     const vipOnly = isVipForum(await allForums(), t.forum_id);
     if (vipOnly) { const ok = await vip.vipForumAudience(watchers.map((w) => w.user_id), q); watchers = watchers.filter((w) => ok.has(String(w.user_id))); }
     // Watchers only get notified if they can still see the thread (e.g. not after it moved to a private forum and they were logged out — members always can).
-    for (const w of watchers) await notify(q, { userId: w.user_id, actorId: me.id, type: 'reply', text: `${me.username} replied to the thread ${t.title}`, link });
-    await notifyMentions(q, { content: d.content, actor: me, link, where: t.title, excludeIds: watchers.map((w) => String(w.user_id)), audience: vipOnly ? (ids) => vip.vipForumAudience(ids, q) : null });
+    for (const w of watchers) await notify(q, { userId: w.user_id, actorId: me.id, type: 'reply', text: `${me.username} replied to the thread ${(t.nsfw ? '[NSFW] ' : '') + t.title}`, link });
+    await notifyMentions(q, { content: d.content, actor: me, link, where: (t.nsfw ? '[NSFW] ' : '') + t.title, excludeIds: watchers.map((w) => String(w.user_id)), audience: vipOnly ? (ids) => vip.vipForumAudience(ids, q) : null });
     const prefs = await q.one('SELECT auto_watch FROM user_preferences WHERE user_id = $1', [me.id]);
     if (!prefs || prefs.auto_watch) await q.query('INSERT INTO thread_watches (user_id, thread_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [me.id, t.id]);
     await q.query(`INSERT INTO thread_reads (user_id, thread_id, read_at) VALUES ($1, $2, now()) ON CONFLICT (user_id, thread_id) DO UPDATE SET read_at = now()`, [me.id, t.id]);

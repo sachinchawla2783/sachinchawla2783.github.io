@@ -49,11 +49,11 @@ router.get('/search', require('../lib/limits').search, async (req, res) => {
     if (titleOnly) conds.push('p.id = t.first_post_id');
     if (tsq) conds.push(titleOnly ? `t.title_search @@ ${tsq}` : `(p.search @@ ${tsq} OR (p.id = t.first_post_id AND t.title_search @@ ${tsq}))`);
     const rank = tsq ? `ts_rank(p.search, ${tsq}) + 2 * ts_rank(t.title_search, ${tsq})` : '0';
-    const rows = await db.many(`SELECT p.id, p.thread_id, p.author_id, p.content, p.created_at, t.title, t.prefix, t.forum_id, f.title AS forum_title,
+    const rows = await db.many(`SELECT p.id, p.thread_id, p.author_id, p.content, p.created_at, t.title, t.prefix, t.nsfw, t.forum_id, f.title AS forum_title,
         (p.id = t.first_post_id) AS is_first, ${rank} AS rank
       FROM posts p JOIN threads t ON t.id = p.thread_id JOIN forums f ON f.id = t.forum_id
       WHERE ${conds.join(' AND ')} ORDER BY ${q.o === 'relevance' && tsq ? 'rank DESC,' : ''} p.created_at DESC LIMIT 100`, params);
-    rows.forEach((r) => results.push({ kind: r.is_first ? 'thread' : 'post', postId: String(r.id), threadId: String(r.thread_id), threadTitle: r.title, prefix: r.prefix, forumId: r.forum_id, forumTitle: r.forum_title, authorId: r.author_id, content: r.content.slice(0, 600), at: r.created_at, rank: Number(r.rank) }));
+    rows.forEach((r) => results.push({ kind: r.is_first ? 'thread' : 'post', postId: String(r.id), threadId: String(r.thread_id), threadTitle: r.title, prefix: r.prefix, nsfw: r.nsfw, forumId: r.forum_id, forumTitle: r.forum_title, authorId: r.author_id, content: r.content.slice(0, 600), at: r.created_at, rank: Number(r.rank) }));
   }
   if (!q.t || q.t === 'profile_post') {
     const conds = ['deleted_at IS NULL'];

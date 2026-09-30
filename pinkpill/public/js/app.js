@@ -275,7 +275,7 @@
     report(el) {
       if (!need()) return;
       modal('Report content', '<form data-form="report" data-kind="' + el.dataset.kind + '" data-id="' + el.dataset.id + '"><p class="small muted">Reports are sent to moderators. Please explain what rule this breaks.</p>' +
-        '<label class="field"><span>Reason</span><select name="preset"><option value="">Choose…</option><option>Low-effort post outside Off-Topic</option><option>Necroposting</option><option>Illegal content</option><option>Sexualizing minors</option><option>Multiple or shared accounts</option><option>Posting for a banned user</option><option>Gore or shock material</option><option>Scat</option><option>Repfarming</option><option>Trolling / disruption</option><option>Private content</option><option>Private surgery results</option><option>Doxxing</option><option>Mass-tagging</option><option>Spam or bots</option><option>AI-generated content</option><option>Impersonation</option><option>Misinformation</option><option>Advertising</option><option>Other</option></select></label>' +
+        '<label class="field"><span>Reason</span><select name="preset"><option value="">Choose…</option><option>Untagged NSFW content</option><option>Pornography or sexually explicit material</option><option>Low-effort post outside Off-Topic</option><option>Necroposting</option><option>Illegal content</option><option>Sexualizing minors</option><option>Multiple or shared accounts</option><option>Posting for a banned user</option><option>Gore or shock material</option><option>Scat</option><option>Repfarming</option><option>Trolling / disruption</option><option>Private content</option><option>Private surgery results</option><option>Doxxing</option><option>Mass-tagging</option><option>Spam or bots</option><option>AI-generated content</option><option>Impersonation</option><option>Misinformation</option><option>Advertising</option><option>Other</option></select></label>' +
         '<label class="field"><span>Details</span><textarea name="reason" rows="3" maxlength="400"></textarea></label><div class="form-actions"><button class="btn btn-primary">Report</button> <button type="button" class="btn" data-close>Cancel</button></div></form>');
     },
     async bookmark(el) {
@@ -307,6 +307,7 @@
       modal('Edit thread', '<form data-form="edit-thread" data-id="' + t.id + '"><label class="field"><span>Prefix</span><select name="prefix"><option value="">(No prefix)</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '"' + (p.id === t.prefix ? ' selected' : '') + '>' + esc(p.label) + '</option>').join('') + '</select></label>' +
         '<label class="field"><span>Title</span><input name="title" value="' + esc(t.title) + '" required maxlength="150"></label><label class="field"><span>Tags</span><input name="tags" value="' + esc(t.tags.join(', ')) + '"></label>' +
         (d.poll ? '<label class="check"><input type="checkbox" name="closePoll"' + (d.poll.closed ? ' checked' : '') + '> Close poll</label>' : '') +
+        '<label class="check"><input type="checkbox" name="nsfw"' + (t.nsfw ? ' checked' : '') + (d.permissions.nsfwLockedByStaff ? ' disabled' : '') + '> ' + ui.nsfwTag(true) + 'Contains NSFW (mature, non-explicit) content' + (d.permissions.nsfwLockedByStaff ? ' <span class="small muted">(set by a moderator)</span>' : '') + '</label>' +
         '<div class="form-actions"><button class="btn btn-primary">Save</button></div></form>');
     },
     'delete-thread'(el) {
@@ -477,7 +478,7 @@
         if (opts.length < 2) throw new Error('A poll needs at least 2 options.');
         poll = { question: d.poll_q.trim(), options: opts, multiple: !!d.poll_multi, closeDays: d.poll_days ? Number(d.poll_days) : null };
       }
-      const r = await api.post('/forums/' + f.dataset.forum + '/threads', { title: d.title, content: d.content, prefix: d.prefix || null, tags: tagsOf(d.tags), poll, ratingEnabled: !!d.rating_enabled, watch: !!d.watch });
+      const r = await api.post('/forums/' + f.dataset.forum + '/threads', { title: d.title, content: d.content, prefix: d.prefix || null, tags: tagsOf(d.tags), poll, ratingEnabled: !!d.rating_enabled, nsfw: !!d.nsfw, watch: !!d.watch });
       ui.clearDraft(f);
       go('#/threads/' + r.thread.id);
     },
@@ -507,6 +508,8 @@
     },
     async 'edit-thread'(f, d) {
       const body = { title: d.title.trim(), prefix: d.prefix || null, tags: tagsOf(d.tags) };
+      const box = f.querySelector('[name=nsfw]');
+      if (box && !box.disabled && box.checked !== !!(PP.currentThread && PP.currentThread.thread.nsfw)) body.nsfw = box.checked;
       if (PP.currentThread && PP.currentThread.poll) body.pollClosed = !!d.closePoll;
       await api.patch('/threads/' + f.dataset.id, body);
       closeModal(); refresh();

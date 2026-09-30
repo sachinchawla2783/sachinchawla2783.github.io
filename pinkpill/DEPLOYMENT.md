@@ -534,12 +534,13 @@ own copies, **never in Git** (`backups/`, `*.dump`, `*.dump.enc` are git-ignored
 ---
 
 ## 17. Account and age policy (as implemented)
-- **Requirement:** members must be 18 or older (Terms; checked at registration).
-- **How it's collected:** a date of birth field at registration. The server rejects dates under 18 years
-  and stores the date in `profiles.birthday`. Other members only ever see the month and day.
-- **What it is not:** this is **self-attestation**. Nothing verifies the date or the person's identity. A
-  minor can lie about their birthdate, so it does not meet any legal "age verification" standard. Real age
-  assurance requires a third-party verification provider (not included).
+- **Requirement:** members must be **13 or older** (US COPPA: no accounts for under-13s without verified
+  parental consent). PinkPill is not an 18+ site.
+- **How it's collected:** a date of birth field at registration, stored in `profiles.birthday`. The server
+  rejects under-13 dates. Other members only ever see the month and day.
+- **What it is not:** this is **self-attestation**. Nothing verifies the date or the person's identity.
+- The date of birth is also used for one rule: only members aged 18 or over (by their stated birthday)
+  can put the NSFW tag on a thread, because NSFW threads may contain revealing photos (see §18).
 - Accounts also need a verified email address before posting (in production), one account per person per
   the rules (not technically enforced), and can be deleted by the member (anonymised; posts remain as
   "Deleted member").
@@ -549,3 +550,19 @@ There is **no automatic flagging** (site policy): posts are never auto-reported,
 crisis popup is shown when posting. Moderation relies on member reports, the moderator queue, warnings,
 bans and the audit log. The Support resources help page (`#/help/resources`) is still linked from the
 rules and footer. The rules page describes this behaviour.
+
+### NSFW content warning
+- **Meaning:** NSFW marks mature or sensitive but **non-explicit** content: revealing photos (swimwear,
+  lingerie), graphic cosmetic before/after photos, strong language, mature discussions. **Pornography and
+  sexually explicit material are not allowed**, tagged or not, and sexualizing minors is prohibited.
+- **It's a warning, not an access restriction.** NSFW threads are visible to every member who can see the
+  forum, and the red NSFW label appears wherever the thread appears: forum lists, the forum index's
+  latest post, the sidebar, What's new, activity feeds, search results, bookmarks, reputation lists, the
+  report queue and the thread page (which also shows a content-warning banner). Alerts about NSFW threads
+  are prefixed "[NSFW]".
+- **Tagging:** the author ticks "This thread contains NSFW content" when posting or via Edit thread. Only
+  members aged 18+ (stated birthday) and staff can apply the tag. Moderators can add or remove it on any
+  thread; a tag set by a moderator can't be removed by the author. Every staff tag change is audit-logged
+  (`thread.nsfw_tag` / `thread.nsfw_untag`) and the author is notified.
+- **Enforcement:** members report untagged NSFW or explicit content ("Untagged NSFW content",
+  "Pornography or sexually explicit material"); moderators tag, delete, warn or ban as usual.

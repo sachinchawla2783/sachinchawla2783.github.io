@@ -606,3 +606,8 @@ section.block > .table { margin: 0; }
   .vip-price { font-size: 1.6rem; }
   .vip-choices--methods .vip-choice, .vip-choice { width: 100%; }
 }
+
+/* ---------- NSFW content warning ---------- */
+.nsfw-tag { display: inline-block; font-size: .68rem; font-weight: 800; letter-spacing: .5px; padding: 1px 6px; border-radius: 4px; background: #dc2626; color: #fff; vertical-align: .12em; line-height: 1.4; }
+.notice--nsfw { border-left-color: #dc2626; }
+.nsfw-choice { border: 1px dashed var(--border-strong); border-radius: 8px; padding: 6px 12px; margin: 10px 0; }

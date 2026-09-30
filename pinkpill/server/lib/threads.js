@@ -61,6 +61,18 @@ async function repPower(userId, role, q = db) {
   return base + (role === 'admin' || role === 'super_admin' ? 2 : role === 'moderator' ? 1 : 0);
 }
 
+/* Is this member 18 or older according to their date of birth? Unknown birthdays count as "no". */
+async function isAdultMember(userId, q = db) {
+  const r = await q.one(`SELECT birthday <= (current_date - interval '18 years') AS adult FROM profiles WHERE user_id = $1`, [userId]);
+  return !!(r && r.adult);
+}
+
+/* NSFW-tagged threads may contain revealing photos, so members under 18 can't start them (staff can tag anything). */
+async function assertMayTagNsfw(user, q = db) {
+  if (user.isStaff || await isAdultMember(user.id, q)) return;
+  throw new HttpError(403, 'nsfw_adults_only', 'Only members aged 18 or over can post NSFW-tagged threads.');
+}
+
 /* How long (minutes) this member may edit their own posts. 0 = no limit. VIP+ raises it. */
 async function editWindowMinutes(user, q = db) {
   const base = Number(await settings.get('post_edit_window_minutes', 60)) || 0;
@@ -103,4 +115,4 @@ async function participantLimit(user) {
 }
 
 module.exports = { POSTS_PER_PAGE, THREADS_PER_PAGE, REACTIONS, VIP_REACTIONS, PREFIXES, loadThread, loadPost, refreshThreadStats, assertNotFlooding, repPower,
-  editWindowMinutes, assertWithinEditWindow, assertCanDeleteOwnThread, participantLimit };
+  editWindowMinutes, assertWithinEditWindow, assertCanDeleteOwnThread, participantLimit, isAdultMember, assertMayTagNsfw };

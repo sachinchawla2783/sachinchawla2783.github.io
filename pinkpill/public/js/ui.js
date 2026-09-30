@@ -54,6 +54,9 @@
     return '';
   }
 
+  /* NSFW content warning: mature or sensitive but non-explicit content. Shown wherever a thread appears. */
+  const nsfwTag = (on) => (on ? '<span class="nsfw-tag" title="Content warning: mature or sensitive (non-explicit) content">NSFW</span> ' : '');
+
   function prefix(id) {
     const p = window.PP.PREFIXES.find((x) => x.id === id);
     return p ? '<span class="prefix" style="--c:' + p.color + '">' + esc(p.label) + '</span> ' : '';
@@ -232,5 +235,5 @@
     el.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - el.offsetWidth - 8)) + 'px';
   }
 
-  window.PP.ui = { safeColor, vipName, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
+  window.PP.ui = { nsfwTag, safeColor, vipName, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
 })();

@@ -4,7 +4,7 @@
   'use strict';
   const PP = window.PP;
   const { store, api, esc, bbcode, time, num, ui, snippet, fullDate, timeAgo } = PP;
-  const { avatar, username, userTitle, prefix, pagination, breadcrumb, editor } = ui;
+  const { avatar, username, userTitle, prefix, pagination, breadcrumb, editor, nsfwTag } = ui;
   const me = () => PP.session.user;
   const U = (id) => store.user(id);
   const can = (p) => store.can(p);
@@ -34,7 +34,7 @@
 
   function widgetLatestPosts(w, n) {
     return '<section class="block"><h3 class="block-head"><a href="#/whats-new">Latest posts</a></h3><div class="block-body">' +
-      (w.latest.length ? w.latest.slice(0, n || 6).map((t) => { const lu = U(t.lastPost && t.lastPost.userId); return '<div class="mini-post">' + avatar(lu, 's') + '<div><a href="#/threads/' + t.id + '/post-' + t.lastPost.id + '" class="mini-title">' + prefix(t.prefix) + esc(t.title) + '</a><div class="small muted">Latest: ' + esc(lu ? lu.username : '?') + ' · ' + time(t.lastPost.at) + '</div><div class="small muted">' + esc(t.forumTitle || '') + '</div></div></div>'; }).join('') : '<p class="muted">No posts yet.</p>') + '</div></section>';
+      (w.latest.length ? w.latest.slice(0, n || 6).map((t) => { const lu = U(t.lastPost && t.lastPost.userId); return '<div class="mini-post">' + avatar(lu, 's') + '<div><a href="#/threads/' + t.id + '/post-' + t.lastPost.id + '" class="mini-title">' + nsfwTag(t.nsfw) + prefix(t.prefix) + esc(t.title) + '</a><div class="small muted">Latest: ' + esc(lu ? lu.username : '?') + ' · ' + time(t.lastPost.at) + '</div><div class="small muted">' + esc(t.forumTitle || '') + '</div></div></div>'; }).join('') : '<p class="muted">No posts yet.</p>') + '</div></section>';
   }
 
   function widgetStats(w) {
@@ -64,7 +64,7 @@
       '<div class="node-main"><a class="node-title" href="#/forums/' + f.id + '">' + esc(f.title) + '</a>' + (f.vipOnly ? ' <span class="badge badge--vip" title="Only visible to VIP members">👑 VIP only</span>' : f.membersOnly ? ' <span class="badge" title="Only visible to logged-in members">🔒 Members only</span>' : '') + '<div class="node-desc">' + esc(f.description) + '</div>' +
       (subs.length ? '<div class="node-subs">' + subs.map((c) => '<a href="#/forums/' + c.id + '" class="' + (c.stats && c.stats.unread ? 'unread' : '') + '">' + esc(c.icon) + ' ' + esc(c.title) + '</a>').join('') + '</div>' : '') + '</div>' +
       '<dl class="node-stats"><div><dt>Threads</dt><dd>' + num(s.threads) + '</dd></div><div><dt>Messages</dt><dd>' + num(s.messages) + '</dd></div></dl>' +
-      '<div class="node-last">' + (lp ? avatar(lu, 's') + '<div><a href="#/threads/' + lp.threadId + '/post-' + lp.postId + '" class="node-last-title">' + prefix(lp.prefix) + esc(lp.threadTitle) + '</a><div class="small muted">' + time(lp.at) + ' · ' + username(lu) + '</div></div>' : '<span class="muted">None</span>') + '</div></div>';
+      '<div class="node-last">' + (lp ? avatar(lu, 's') + '<div><a href="#/threads/' + lp.threadId + '/post-' + lp.postId + '" class="node-last-title">' + nsfwTag(lp.nsfw) + prefix(lp.prefix) + esc(lp.threadTitle) + '</a><div class="small muted">' + time(lp.at) + ' · ' + username(lu) + '</div></div>' : '<span class="muted">None</span>') + '</div></div>';
   }
 
   async function home() {
@@ -95,7 +95,7 @@
     if (t.pages > 1) pageLinks = '<span class="thread-pages">' + [...new Set([1, 2, 3, t.pages - 1, t.pages].filter((n) => n > 0 && n <= t.pages))].map((n) => '<a href="#/threads/' + t.id + (n > 1 ? '/page-' + n : '') + '">' + n + '</a>').join(' ') + '</span>';
     return '<div class="thread-row' + (t.unread ? ' thread-row--unread' : '') + (t.sticky ? ' thread-row--sticky' : '') + '">' +
       '<div class="thread-avatar">' + avatar(au, 'm') + '</div>' +
-      '<div class="thread-main"><div class="thread-title">' + prefix(t.prefix) + '<a href="#/threads/' + t.id + (t.unread ? '?unread=1' : '') + '">' + esc(t.title) + '</a></div>' +
+      '<div class="thread-main"><div class="thread-title">' + nsfwTag(t.nsfw) + prefix(t.prefix) + '<a href="#/threads/' + t.id + (t.unread ? '?unread=1' : '') + '">' + esc(t.title) + '</a></div>' +
       '<div class="thread-meta small muted">' + (opts.forum && t.forumTitle ? '<a href="#/forums/' + t.forumId + '">' + esc(t.forumTitle) + '</a> · ' : '') + username(au) + ' · ' + time(t.createdAt) + ' ' + pageLinks +
       '<span class="thread-icons">' + (t.sticky ? '<span title="Sticky">📌</span>' : '') + (t.locked ? '<span title="Locked">🔒</span>' : '') + (t.hasPoll ? '<span title="Poll">📊</span>' : '') + (t.ratingEnabled ? '<span title="Rating thread">⭐</span>' : '') + (t.watched ? '<span title="Watched">👁</span>' : '') + '</span></div></div>' +
       '<dl class="thread-stats"><div><dt>Replies</dt><dd>' + num(t.replyCount) + '</dd></div><div><dt>Views</dt><dd>' + num(t.viewCount) + '</dd></div></dl>' +
@@ -239,7 +239,7 @@
     const author = U(th.authorId);
     const tools = (perm.editThread || perm.deleteThread || perm.sticky || perm.lock || perm.move);
     let html = breadcrumb(crumbs(d).concat([['#/threads/' + th.id, th.title]])) +
-      '<div class="page-head"><h1>' + prefix(th.prefix) + esc(th.title) + '</h1>' +
+      '<div class="page-head"><h1>' + nsfwTag(th.nsfw) + prefix(th.prefix) + esc(th.title) + '</h1>' +
       '<div class="thread-info muted small">' + username(author) + ' · ' + time(th.createdAt) + (th.locked ? ' · 🔒 Locked' : '') + (th.sticky ? ' · 📌 Sticky' : '') + (th.deleted ? ' · 🗑 Deleted' : '') + '</div>' +
       (th.tags.length ? '<div class="tags">' + th.tags.map((t) => '<a class="tag" href="#/tags/' + encodeURIComponent(t) + '">' + esc(t) + '</a>').join('') + '</div>' : '') +
       '<div class="head-actions">' + (u ? '<button class="btn" data-act="watch-thread" data-id="' + th.id + '" data-on="' + (th.watching ? 1 : '') + '">' + (th.watching ? '👁 Unwatch' : '👁 Watch') + '</button> ' : '') +
@@ -251,6 +251,7 @@
         (th.deleted && perm.deleteAny ? '<button data-act="restore-thread" data-id="' + th.id + '">Restore thread</button>' : '') +
         (perm.deleteThread && !th.deleted ? '<button data-act="delete-thread" data-id="' + th.id + '" data-forum="' + th.forumId + '" class="danger">Delete thread</button>' : '') + '</div></span>' : '') +
       '</div></div>';
+    if (th.nsfw) html += '<div class="notice notice--nsfw">' + nsfwTag(true) + '<b>Content warning.</b> This thread contains mature or sensitive (non-explicit) content.</div>';
     if (u && u.mustVerifyEmail) html += verifyNotice();
     html += pagination(d.total || th.total, d.perPage, d.page, '#/threads/' + th.id);
     if (d.poll) html += pollHtml(d.poll, th, perm);
@@ -269,7 +270,7 @@
         '<span class="small muted">Ctrl+Enter to post</span></div></form></div></section>';
     }
     const sidebar = '<section class="block"><h3 class="block-head">Thread information</h3><div class="block-body"><dl class="pairs"><div><dt>Started by</dt><dd>' + username(author) + '</dd></div><div><dt>Replies</dt><dd>' + num(th.replyCount) + '</dd></div><div><dt>Views</dt><dd>' + num(th.viewCount) + '</dd></div><div><dt>Watchers</dt><dd>' + th.watchers + '</dd></div><div><dt>Participants</dt><dd>' + th.participants + '</dd></div></dl></div></section>' +
-      (d.similar.length ? '<section class="block"><h3 class="block-head">Similar threads</h3><div class="block-body">' + d.similar.map((t) => '<div class="mini-post"><div><a class="mini-title" href="#/threads/' + t.id + '">' + prefix(t.prefix) + esc(t.title) + '</a></div></div>').join('') + '</div></section>' : '') +
+      (d.similar.length ? '<section class="block"><h3 class="block-head">Similar threads</h3><div class="block-body">' + d.similar.map((t) => '<div class="mini-post"><div><a class="mini-title" href="#/threads/' + t.id + '">' + nsfwTag(t.nsfw) + prefix(t.prefix) + esc(t.title) + '</a></div></div>').join('') + '</div></section>' : '') +
       widgetOnline(await widgets());
     const target = d.targetPostId;
     return {
@@ -307,7 +308,7 @@
       '<div class="page-head"><h1>Post thread in ' + esc(f.title) + '</h1></div>' +
       (u.mustVerifyEmail ? verifyNotice() : '') +
       (f.membersOnly ? '<div class="notice">🔒 This is a <b>members-only</b> forum: your thread will be hidden from guests.</div>' : '') +
-      (f.ratingEnabled ? '<div class="notice">Posting in <b>' + esc(f.title) + '</b>: you\'re opting in to ratings and feedback. Only post photos of yourself, and only if you\'re 18+. You can delete your thread at any time.</div>' : '') +
+      (f.ratingEnabled ? '<div class="notice">Posting in <b>' + esc(f.title) + '</b>: you\'re opting in to ratings and feedback. Only post photos of yourself. Revealing photos must be of adults (18+) and tagged NSFW. You can delete your thread at any time.</div>' : '') +
       '<form class="block form" data-form="post-thread" data-forum="' + f.id + '" data-draft="thread-' + f.id + '"><div class="block-body">' +
       '<div class="row"><select name="prefix" class="prefix-select"><option value="">(No prefix)</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '"' + (f.ratingEnabled && p.id === 'rateme' ? ' selected' : '') + '>' + esc(p.label) + '</option>').join('') + '</select>' +
       '<input name="title" class="grow input-title" placeholder="Thread title" maxlength="150" required></div>' +
@@ -320,6 +321,8 @@
       '<label class="check"><input type="checkbox" name="poll_multi"> Allow selecting multiple options</label>' +
       '<label class="field"><span>Close poll after (days, blank = never)</span><input name="poll_days" type="number" min="1" max="365"></label></div></details>' : '') +
       (!f.ratingEnabled ? '<label class="check"><input type="checkbox" name="rating_enabled"> ⭐ Enable community ratings on this thread (opt-in)</label>' : '') +
+      '<div class="nsfw-choice">' + (u.canTagNsfw ? '<label class="check"><input type="checkbox" name="nsfw"> ' + nsfwTag(true) + '<b>This thread contains NSFW content</b> (required if it does)</label>' : '<p class="small">' + nsfwTag(true) + 'Only members aged 18 or over can post NSFW-tagged threads.</p>') +
+      '<p class="small muted">Mature or sensitive but <b>non-explicit</b> content: revealing photos (swimwear, lingerie), graphic before/after photos, strong language or mature discussions. Pornography and sexually explicit material are not allowed, tagged or not. Untagged NSFW posts can be reported and tagged by moderators.</p></div>' +
       '<label class="check"><input type="checkbox" name="watch"' + (u.prefs.autoWatch ? ' checked' : '') + '> Watch this thread and receive alerts for replies</label>' +
       '<div class="form-actions"><button class="btn btn-primary">✚ Post thread</button> <a class="btn" href="#/forums/' + f.id + '">Cancel</a></div></div></form>';
     return { title: 'Post thread', html };
@@ -376,7 +379,7 @@
     if (i.kind === 'profile_post') {
       return '<div class="activity-item">' + avatar(a, 's') + '<div class="grow"><div>' + username(a) + (i.profileUserId === i.authorId ? ' updated their status.' : ' wrote on ' + username(U(i.profileUserId)) + '\'s profile.') + '</div><div class="activity-snippet">' + esc(snippet(i.content, 220)) + '</div><div class="small muted">' + time(i.at) + '</div></div></div>';
     }
-    return '<div class="activity-item">' + avatar(a, 's') + '<div class="grow"><div>' + username(a) + (i.kind === 'thread' ? ' started the thread ' : ' replied to the thread ') + '<a href="#/threads/' + i.threadId + '/post-' + (i.id || i.postId) + '">' + prefix(i.prefix) + esc(i.threadTitle) + '</a>.</div><div class="activity-snippet">' + esc(snippet(i.content, 220)) + '</div><div class="small muted">' + time(i.at) + (i.forumTitle ? ' · ' + esc(i.forumTitle) : '') + '</div></div></div>';
+    return '<div class="activity-item">' + avatar(a, 's') + '<div class="grow"><div>' + username(a) + (i.kind === 'thread' ? ' started the thread ' : ' replied to the thread ') + '<a href="#/threads/' + i.threadId + '/post-' + (i.id || i.postId) + '">' + nsfwTag(i.nsfw) + prefix(i.prefix) + esc(i.threadTitle) + '</a>.</div><div class="activity-snippet">' + esc(snippet(i.content, 220)) + '</div><div class="small muted">' + time(i.at) + (i.forumTitle ? ' · ' + esc(i.forumTitle) : '') + '</div></div></div>';
   }
 
   function profilePostHtml(pp) {
@@ -449,7 +452,7 @@
     } else if (tab === 'reputation') {
       const r = await api.get('/members/' + m.id + '/reputation');
       body = '<section class="block"><div class="block-body"><div class="rep-summary">' + repBadge(r.totals.total) + '<div><b>' + store.repLevel(r.totals.total).label + '</b><div class="small muted">' + r.totals.pos + ' positive · ' + r.totals.neg + ' negative · rep power ' + r.totals.power + '</div></div></div>' +
-        (r.reputation.length ? r.reputation.map((x) => '<div class="activity-item">' + avatar(U(x.giverId), 's') + '<div class="grow"><div>' + username(U(x.giverId)) + ' gave <span class="rep ' + (x.value < 0 ? 'rep--neg' : 'rep--3') + '">' + (x.value > 0 ? '+' : '') + x.value + '</span>' + (x.threadId ? ' for <a href="#/threads/' + x.threadId + '/post-' + x.postId + '">' + esc(x.threadTitle) + '</a>' : '') + '</div>' + (x.comment ? '<div class="activity-snippet">“' + esc(x.comment) + '”</div>' : '') + '<div class="small muted">' + time(x.at) + '</div></div>' + (x.canRemove ? '<button class="btn btn-sm" data-act="rep-remove" data-id="' + x.id + '">Remove</button>' : '') + '</div>').join('') : '<div class="empty">' + esc(m.username) + ' hasn\'t received any reputation yet.</div>') + '</div></section>';
+        (r.reputation.length ? r.reputation.map((x) => '<div class="activity-item">' + avatar(U(x.giverId), 's') + '<div class="grow"><div>' + username(U(x.giverId)) + ' gave <span class="rep ' + (x.value < 0 ? 'rep--neg' : 'rep--3') + '">' + (x.value > 0 ? '+' : '') + x.value + '</span>' + (x.threadId ? ' for <a href="#/threads/' + x.threadId + '/post-' + x.postId + '">' + nsfwTag(x.nsfw) + esc(x.threadTitle) + '</a>' : '') + '</div>' + (x.comment ? '<div class="activity-snippet">“' + esc(x.comment) + '”</div>' : '') + '<div class="small muted">' + time(x.at) + '</div></div>' + (x.canRemove ? '<button class="btn btn-sm" data-act="rep-remove" data-id="' + x.id + '">Remove</button>' : '') + '</div>').join('') : '<div class="empty">' + esc(m.username) + ' hasn\'t received any reputation yet.</div>') + '</div></section>';
     } else if (tab === 'trophies') {
       body = '<section class="block"><div class="block-body">' + (d.trophies.length ? d.trophies.map((t) => '<div class="trophy"><div class="trophy-points">' + t.points + '</div><div><b>' + esc(t.title) + '</b><div class="small muted">' + esc(t.desc) + ' · ' + time(t.awardedAt) + '</div></div></div>').join('') : '<div class="empty">No trophies yet.</div>') + '</div></section>';
     } else if (tab === 'followers' || tab === 'following') {
@@ -486,7 +489,7 @@
       (PP.session.turnstile && PP.session.turnstile.siteKey ? '<div data-turnstile></div>' : '') +
       '<label class="check"><input type="checkbox" name="agree" required> I agree to the <a href="#/help/terms">terms</a>, <a href="#/help/rules">rules</a> and <a href="#/help/privacy">privacy policy</a>.</label>' +
       '<div class="form-actions"><button class="btn btn-primary">Register</button></div>' +
-      '<p class="small muted">PinkPill is an 18+ community. We\'ll email you a link to verify your address.</p></div></form></div>';
+      '<p class="small muted">You must be 13 or older to join. We\'ll email you a link to verify your address.</p></div></form></div>';
     return { title: 'Register', html };
   }
 
@@ -575,7 +578,7 @@
       body = '<section class="block"><div class="block-body">' + (list.length ? '<div class="member-list">' + list.map((m) => '<div class="member-row">' + avatar(m, 'm') + '<div class="grow">' + username(m) + '</div><button class="btn btn-sm" data-act="' + (tab === 'following' ? 'follow' : 'ignore') + '" data-id="' + m.id + '" data-on="1">' + (tab === 'following' ? 'Unfollow' : 'Unignore') + '</button></div>').join('') + '</div>' : '<div class="empty">You\'re not ' + tab + ' anyone.</div>') + '</div></section>';
     } else if (tab === 'bookmarks') {
       const r = await api.get('/account/bookmarks');
-      body = '<section class="block"><div class="block-body">' + (r.bookmarks.length ? r.bookmarks.map((b) => '<div class="activity-item">' + avatar(U(b.authorId), 's') + '<div class="grow"><a href="#/threads/' + b.threadId + '/post-' + b.postId + '">' + esc(b.threadTitle) + '</a><div class="activity-snippet">' + esc(snippet(b.content, 200)) + '</div><div class="small muted">' + username(U(b.authorId)) + ' · ' + time(b.at) + '</div></div><button class="btn btn-sm" data-act="bookmark" data-id="' + b.postId + '" data-on="1">Remove</button></div>').join('') : '<div class="empty">You haven\'t bookmarked anything yet. Use 📑 on any post.</div>') + '</div></section>';
+      body = '<section class="block"><div class="block-body">' + (r.bookmarks.length ? r.bookmarks.map((b) => '<div class="activity-item">' + avatar(U(b.authorId), 's') + '<div class="grow"><a href="#/threads/' + b.threadId + '/post-' + b.postId + '">' + nsfwTag(b.nsfw) + esc(b.threadTitle) + '</a><div class="activity-snippet">' + esc(snippet(b.content, 200)) + '</div><div class="small muted">' + username(U(b.authorId)) + ' · ' + time(b.at) + '</div></div><button class="btn btn-sm" data-act="bookmark" data-id="' + b.postId + '" data-on="1">Remove</button></div>').join('') : '<div class="empty">You haven\'t bookmarked anything yet. Use 📑 on any post.</div>') + '</div></section>';
     } else if (tab === 'watched') {
       const r = await api.get('/account/watched');
       body = '<section class="block">' + (r.threads.length ? r.threads.map((t) => '<div class="watched-row">' + threadRow(t) + '<button class="btn btn-sm" data-act="watch-thread" data-id="' + t.id + '" data-on="1">Unwatch</button></div>').join('') : '<div class="empty">You aren\'t watching any threads.</div>') + '</section>';
@@ -663,7 +666,7 @@
     if (r.kind === 'profile_post') {
       return '<div class="activity-item">' + avatar(U(r.authorId), 's') + '<div class="grow"><a href="#/members/' + r.profileUserId + '">Profile post by ' + esc((U(r.authorId) || {}).username || '?') + '</a><div class="activity-snippet">' + esc(snippet(r.content, 240)) + '</div><div class="small muted">Profile post · ' + time(r.at) + '</div></div></div>';
     }
-    return '<div class="activity-item">' + avatar(U(r.authorId), 's') + '<div class="grow"><a href="#/threads/' + r.threadId + '/post-' + r.postId + '">' + prefix(r.prefix) + esc(r.threadTitle) + '</a><div class="activity-snippet">' + esc(snippet(r.content, 240)) + '</div><div class="small muted">' + username(U(r.authorId)) + ' · ' + (r.kind === 'thread' ? 'Thread' : 'Post') + ' · ' + time(r.at) + ' · Forum: <a href="#/forums/' + r.forumId + '">' + esc(r.forumTitle) + '</a></div></div></div>';
+    return '<div class="activity-item">' + avatar(U(r.authorId), 's') + '<div class="grow"><a href="#/threads/' + r.threadId + '/post-' + r.postId + '">' + nsfwTag(r.nsfw) + prefix(r.prefix) + esc(r.threadTitle) + '</a><div class="activity-snippet">' + esc(snippet(r.content, 240)) + '</div><div class="small muted">' + username(U(r.authorId)) + ' · ' + (r.kind === 'thread' ? 'Thread' : 'Post') + ' · ' + time(r.at) + ' · Forum: <a href="#/forums/' + r.forumId + '">' + esc(r.forumTitle) + '</a></div></div></div>';
   }
 
   async function search(_, q) {
@@ -728,6 +731,8 @@
         '<li><b>Don\'t revive dead threads.</b><ul><li>Leave threads older than a month alone unless you\'re adding something real.</li><li>Bumping, one-word replies, quotes or “this” don\'t count.</li></ul></li>' +
         '<li><b>Nothing illegal.</b><ul><li>Don\'t post illegal content or encourage anyone to break the law.</li><li>When in doubt, leave it out.</li></ul></li>' +
         '<li><b>Never sexualize minors.</b><ul><li>Anyone under 18 is off-limits, full stop.</li></ul></li>' +
+        '<li><b>No pornography or sexually explicit material.</b><ul><li>This applies everywhere, including NSFW-tagged threads.</li></ul></li>' +
+        '<li><b>Tag NSFW content.</b><ul><li>Threads with mature or sensitive but non-explicit content (revealing photos, graphic before/afters, strong language, mature topics) must carry the NSFW tag.</li><li>Revealing photos must be of adults (18+). Only members aged 18 or over can post NSFW-tagged threads.</li><li>Moderators tag untagged NSFW threads; repeatedly skipping the tag can lead to a ban.</li></ul></li>' +
         '<li><b>One account per person, and it\'s yours alone.</b><ul><li>Duplicate or shared accounts get every linked account banned.</li></ul></li>' +
         '<li><b>Don\'t post for banned members.</b></li>' +
         '<li><b>No gore or shock content.</b></li>' +
@@ -752,6 +757,7 @@
         '<dt>Where can I ask for advice about my life or dating?</dt><dd>Post in <a href="#/forums/f-advice">Situations &amp; Dating Advice</a>. Never post other people\'s personal details.</dd>' +
         '<dt>Why can\'t I post yet?</dt><dd>New accounts must verify their email address first. Check your inbox (and spam folder) for the link, or resend it from Account details.</dd>' +
         '<dt>How do I ignore someone?</dt><dd>Open their profile → ⋯ → Ignore. Their posts are hidden and they can\'t message you or post on your profile.</dd>' +
+        '<dt>What does the NSFW tag mean?</dt><dd>It\'s a content warning for mature or sensitive but non-explicit content: revealing photos, graphic before/after photos, strong language or mature discussions. It shows on every list, search result and feed where the thread appears. PinkPill does not allow pornography or sexually explicit material, tagged or not.</dd>' +
         '<dt>What is VIP?</dt><dd>An optional paid membership that supports PinkPill and unlocks perks such as VIP username colors, the VIP Supporters forum and larger conversations. See <a href="#/vip">VIP</a> (log in first). Monthly packages are one-time payments for one month and don\'t renew automatically.</dd>' +
         '<dt>Can I delete my account?</dt><dd>Yes: Account → Your data.</dd></dl>',
       bbcode: '<table class="table"><thead><tr><th>You type</th><th>You get</th></tr></thead><tbody>' + bbExamples.map((e) => '<tr><td><code>' + esc(e).replace(/\n/g, '<br>') + '</code></td><td class="bbwrap">' + bbcode(e) + '</td></tr>').join('') + '<tr><td><code>[img]https://…[/img]</code></td><td>An image (or use 📎 in the editor to upload one)</td></tr></tbody></table>',
@@ -803,7 +809,7 @@
       body = '<div class="filter-bar">' + ['open', 'resolved', 'rejected'].map((s) => '<a class="btn btn-sm' + (s === status ? ' btn-primary' : '') + '" href="#/mod/reports?status=' + s + '">' + s[0].toUpperCase() + s.slice(1) + '</a>').join(' ') + '</div><section class="block"><div class="block-body">' + (d.reports.length ? d.reports.map((r) => {
         const t = r.target;
         let target = '<span class="muted">Content no longer exists</span>';
-        if (t && r.type === 'post') target = 'Post by ' + username(U(t.authorId)) + ' in <a href="#/threads/' + t.threadId + '/post-' + r.contentId + '">' + esc(t.threadTitle) + '</a>' + (t.deleted ? ' <span class="badge">deleted</span>' : '') + '<div class="activity-snippet">' + esc(snippet(t.content, 300)) + '</div>';
+        if (t && r.type === 'post') target = 'Post by ' + username(U(t.authorId)) + ' in <a href="#/threads/' + t.threadId + '/post-' + r.contentId + '">' + nsfwTag(t.nsfw) + esc(t.threadTitle) + '</a>' + (t.deleted ? ' <span class="badge">deleted</span>' : '') + '<div class="activity-snippet">' + esc(snippet(t.content, 300)) + '</div>';
         else if (t && r.type === 'profile_post') target = 'Profile post by ' + username(U(t.authorId)) + ' on <a href="#/members/' + t.profileUserId + '">their profile</a><div class="activity-snippet">' + esc(snippet(t.content, 300)) + '</div>';
         else if (t && r.type === 'message') target = 'Private message by ' + username(U(t.authorId)) + '<div class="activity-snippet">' + esc(snippet(t.content, 300)) + '</div>';
         else if (t && r.type === 'user') target = 'Member ' + username(U(t.userId));

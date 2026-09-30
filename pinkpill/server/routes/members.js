@@ -197,7 +197,7 @@ router.get('/members/:id/reputation', async (req, res) => {
   const visible = await visibleForumIds(req.user);
   const rows = await db.many(`SELECT r.id, r.giver_id, r.value, r.comment, r.created_at, r.post_id,
       CASE WHEN t.forum_id = ANY($2) AND t.deleted_at IS NULL AND p.deleted_at IS NULL THEN t.id END AS thread_id,
-      CASE WHEN t.forum_id = ANY($2) AND t.deleted_at IS NULL AND p.deleted_at IS NULL THEN t.title END AS thread_title
+      CASE WHEN t.forum_id = ANY($2) AND t.deleted_at IS NULL AND p.deleted_at IS NULL THEN t.title END AS thread_title, t.nsfw
     FROM reputation r JOIN posts p ON p.id = r.post_id JOIN threads t ON t.id = p.thread_id
     WHERE r.receiver_id = $1 ORDER BY r.created_at DESC LIMIT 200`, [m.id, visible]);
   const totals = await db.one(`SELECT coalesce(sum(value), 0)::int AS total, count(*) FILTER (WHERE value > 0)::int AS pos, count(*) FILTER (WHERE value < 0)::int AS neg FROM reputation WHERE receiver_id = $1`, [m.id]);
@@ -206,7 +206,7 @@ router.get('/members/:id/reputation', async (req, res) => {
     totals: Object.assign(totals, { power: await T.repPower(m.id, u.role_id) }),
     reputation: rows.map((r) => ({
       id: String(r.id), giverId: r.giver_id, value: r.value, comment: r.comment, at: r.created_at,
-      postId: r.thread_id ? String(r.post_id) : null, threadId: r.thread_id ? String(r.thread_id) : null, threadTitle: r.thread_title || null,
+      postId: r.thread_id ? String(r.post_id) : null, threadId: r.thread_id ? String(r.thread_id) : null, threadTitle: r.thread_title || null, nsfw: !!r.nsfw,
       canRemove: !!req.user && (String(r.giver_id) === String(req.user.id) || can(req.user, 'mod.edit_any')),
     })),
     users: await summaries(rows.map((r) => r.giver_id)),
@@ -226,13 +226,13 @@ async function activity(viewer, { authorIds = null, postsOnly = false, limit = 3
   const params = [visible, limit];
   let authorSql = '';
   if (authorIds) { params.push(authorIds); authorSql = `AND p.author_id = ANY($${params.length}::bigint[])`; }
-  const posts = await db.many(`SELECT p.id, p.thread_id, p.author_id, p.content, p.created_at, t.title, t.prefix, t.forum_id, f.title AS forum_title,
+  const posts = await db.many(`SELECT p.id, p.thread_id, p.author_id, p.content, p.created_at, t.title, t.prefix, t.nsfw, t.forum_id, f.title AS forum_title,
       (t.first_post_id = p.id) AS is_first
     FROM posts p JOIN threads t ON t.id = p.thread_id JOIN forums f ON f.id = t.forum_id
     WHERE p.deleted_at IS NULL AND t.deleted_at IS NULL AND t.forum_id = ANY($1) ${authorSql}
     ORDER BY p.created_at DESC LIMIT $2`, params);
   let items = posts.map((p) => ({
-    kind: p.is_first ? 'thread' : 'post', id: String(p.id), threadId: String(p.thread_id), threadTitle: p.title, prefix: p.prefix,
+    kind: p.is_first ? 'thread' : 'post', id: String(p.id), threadId: String(p.thread_id), threadTitle: p.title, prefix: p.prefix, nsfw: p.nsfw,
     forumId: p.forum_id, forumTitle: p.forum_title, authorId: p.author_id, content: p.content.slice(0, 600), at: p.created_at,
   }));
   if (!postsOnly) {
@@ -377,10 +377,10 @@ router.delete('/profile-posts/:id/reaction', requireUser, async (req, res) => {
 
 router.get('/account/bookmarks', requireUser, async (req, res) => {
   const visible = await visibleForumIds(req.user);
-  const rows = await db.many(`SELECT p.id, p.thread_id, p.author_id, p.content, p.created_at, t.title FROM bookmarks b
+  const rows = await db.many(`SELECT p.id, p.thread_id, p.author_id, p.content, p.created_at, t.title, t.nsfw FROM bookmarks b
     JOIN posts p ON p.id = b.post_id JOIN threads t ON t.id = p.thread_id
     WHERE b.user_id = $1 AND p.deleted_at IS NULL AND t.deleted_at IS NULL AND t.forum_id = ANY($2) ORDER BY b.created_at DESC`, [req.user.id, visible]);
-  res.json({ bookmarks: rows.map((r) => ({ postId: String(r.id), threadId: String(r.thread_id), threadTitle: r.title, authorId: r.author_id, content: r.content.slice(0, 400), at: r.created_at })), users: await summaries(rows.map((r) => r.author_id)) });
+  res.json({ bookmarks: rows.map((r) => ({ postId: String(r.id), threadId: String(r.thread_id), threadTitle: r.title, nsfw: r.nsfw, authorId: r.author_id, content: r.content.slice(0, 400), at: r.created_at })), users: await summaries(rows.map((r) => r.author_id)) });
 });
 
 router.get('/account/watched', requireUser, async (req, res) => {

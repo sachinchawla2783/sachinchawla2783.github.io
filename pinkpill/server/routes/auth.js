@@ -33,12 +33,14 @@ const registerSchema = z.object({
   turnstileToken: z.string().max(2048).optional(),
 }).strict();
 
-function isAdult(dateStr) {
+const MIN_AGE = 13;   // US COPPA: no accounts for under-13s without verified parental consent
+
+function isOldEnough(dateStr, years = MIN_AGE) {
   const d = new Date(dateStr + 'T00:00:00Z');
   if (Number.isNaN(d.getTime())) return false;
   const now = new Date();
-  const adultAt = new Date(Date.UTC(d.getUTCFullYear() + 18, d.getUTCMonth(), d.getUTCDate()));
-  return adultAt <= now && d.getUTCFullYear() > 1900;
+  const oldEnoughAt = new Date(Date.UTC(d.getUTCFullYear() + years, d.getUTCMonth(), d.getUTCDate()));
+  return oldEnoughAt <= now && d.getUTCFullYear() > 1900;
 }
 
 async function issueVerification(q, user) {
@@ -52,7 +54,7 @@ router.post('/register', limits.register, async (req, res) => {
   await turnstile.require(req);
   if (!(await settings.get('registration_open', true))) throw forbidden('Registration is currently closed.');
   const d = parse(registerSchema, req.body);
-  if (!isAdult(d.birthday)) throw forbidden('You must be 18 or older to join PinkPill.');
+  if (!isOldEnough(d.birthday)) throw forbidden('You must be ' + MIN_AGE + ' or older to join PinkPill.');
   const hash = await hashPassword(d.password);
   let user, token;
   try {

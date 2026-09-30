@@ -32,8 +32,8 @@ router.get('/reports', async (req, res) => {
     const item = { id: String(r.id), type: r.content_type, contentId: String(r.content_id), reason: r.reason, status: r.status, reporterId: r.reporter_id, at: r.created_at,
       resolvedBy: r.resolved_by, resolvedAt: r.resolved_at, note: r.resolution_note, target: null };
     if (r.content_type === 'post') {
-      const p = await db.one('SELECT p.id, p.author_id, p.content, p.deleted_at, t.id AS thread_id, t.title FROM posts p JOIN threads t ON t.id = p.thread_id WHERE p.id = $1', [r.content_id]);
-      if (p) { item.target = { authorId: p.author_id, content: p.content.slice(0, 600), threadId: String(p.thread_id), threadTitle: p.title, deleted: !!p.deleted_at }; uids.push(p.author_id); }
+      const p = await db.one('SELECT p.id, p.author_id, p.content, p.deleted_at, t.id AS thread_id, t.title, t.nsfw FROM posts p JOIN threads t ON t.id = p.thread_id WHERE p.id = $1', [r.content_id]);
+      if (p) { item.target = { authorId: p.author_id, content: p.content.slice(0, 600), threadId: String(p.thread_id), threadTitle: p.title, nsfw: !!p.nsfw, deleted: !!p.deleted_at }; uids.push(p.author_id); }
     } else if (r.content_type === 'profile_post') {
       const p = await db.one('SELECT author_id, profile_user_id, content, deleted_at FROM profile_posts WHERE id = $1', [r.content_id]);
       if (p) { item.target = { authorId: p.author_id, profileUserId: p.profile_user_id, content: p.content.slice(0, 600), deleted: !!p.deleted_at }; uids.push(p.author_id); }
