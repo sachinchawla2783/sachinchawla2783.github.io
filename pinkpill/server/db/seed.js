@@ -29,7 +29,7 @@ const THREADS = [
     ['Aurora', '[b]Welcome to PinkPill![/b]\n\nThis is a looksmaxxing community for women: skincare, hair, makeup, fitness, style, facial aesthetics and everything in between.\n\n[b]What makes us different:[/b]\n• Evidence over hype. Cite sources when you can.\n• Feedback is [i]opt-in[/i] and constructive. No bullying, no "it\'s over".\n• Zero tolerance for pro-ED content, DIY injections, bonesmashing or other dangerous practices.\n\nPlease read the [url=#/help/rules]forum rules[/url] and introduce yourself in [url=#/forums/f-intro]Introductions[/url]. ✨'],
     ['Celeste', 'So happy this exists. If you need help with anything, tag @Celeste 💕'],
     ['Vivienne', 'Finally a place like this that isn\'t toxic. Thank you!']]],
-  ['f-news', 'Aurora', 'New study: daily SPF use slows visible skin aging', 'research', { tags: ['news', 'spf'] }, [
+  ['f-news', 'Aurora', 'New study: daily SPF use slows visible skin aging', 'news', { tags: ['news', 'spf'] }, [
     ['Aurora', 'A randomised trial summary making the rounds again: participants who applied broad-spectrum sunscreen [b]daily[/b] showed significantly less photoaging over 4.5 years than those who used it at their own discretion.\n\nTakeaway: the best anti-aging product is still the one you wear every morning.'],
     ['Celeste', 'The classic Nambour trial! Always worth re-sharing.']]],
   ['f-intro', 'Freya', 'Hi from Norway 👋', null, {}, [
@@ -47,18 +47,18 @@ const THREADS = [
   ['f-questions', 'Sakura', 'Best sunscreens for oily skin that don\'t pill?', 'question', { tags: ['spf', 'oily-skin'] }, [
     ['Sakura', 'Everything I try either pills under makeup or makes me look greasy by noon. Recommendations?'],
     ['Mireille', 'Look for fluid/gel textures. Let it set 5-10 min before makeup.']]],
-  ['f-hair', 'Vivienne', 'My 12-month hair growth log', 'routine', { tags: ['hair-growth', 'progress'] }, [
+  ['f-hair', 'Vivienne', 'My 12-month hair growth log', 'guide', { tags: ['hair-growth', 'progress'] }, [
     ['Vivienne', 'Routine:\n• Scalp massage 5 min daily\n• Gentle shampoo, 3x/week\n• Silk pillowcase\n• Minimised heat\n• Iron & vit D bloodwork checked with my GP\n\n[spoiler]Gained about 14cm and much less breakage.[/spoiler]']]],
   ['f-makeup', 'Mireille', 'Colour analysis megathread — find your season', 'guide', { sticky: true, tags: ['colour-analysis'], poll: { question: 'What season are you?', options: ['Spring', 'Summer', 'Autumn', 'Winter', 'No idea yet'] } }, [
     ['Mireille', 'Post a [b]no-makeup photo in natural daylight[/b] and I\'ll give my best guess on your season.\n\nRemember this is a tool, not a rule. Wear what makes you happy.']]],
   ['f-body', 'Sakura', 'Posture fixes that made the biggest visual difference', 'guide', { tags: ['posture'] }, [
     ['Sakura', '• Chin tucks (2x10 daily)\n• Wall angels\n• Face pulls & rows\n• Hip flexor stretches if you sit all day'],
     ['Noor', 'Adding thoracic extensions over a foam roller — game changer.']]],
-  ['f-rating', 'Freya', 'Rate me honestly (but nicely) — what should I improve?', 'rateme', { tags: ['feedback'] }, [
+  ['f-rating', 'Freya', 'Rate me honestly (but nicely) — what should I improve?', 'question', { tags: ['feedback'] }, [
     ['Freya', 'No makeup, daylight. What would you focus on first?'],
     ['Mireille', 'Lovely eyes! Brows a touch fuller would frame your face more.', 7],
     ['Dahlia', 'Warm-toned blush would brighten everything up!', 8]]],
-  ['f-private-rating', 'Dahlia', 'Private: rate my new haircut (members only)', 'rateme', { tags: ['hair'] }, [
+  ['f-private-rating', 'Dahlia', 'Private: rate my new haircut (members only)', 'question', { tags: ['hair'] }, [
     ['Dahlia', 'Posting here since it\'s hidden from guests. Went from long layers to a collarbone bob. Thoughts?'],
     ['Mireille', 'Suits your jaw so well!', 8]]],
   ['f-advice', 'Freya', 'He only texts me late at night — am I overthinking?', 'question', { tags: ['dating'] }, [

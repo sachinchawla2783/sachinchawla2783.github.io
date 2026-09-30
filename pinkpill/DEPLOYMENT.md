@@ -539,8 +539,6 @@ own copies, **never in Git** (`backups/`, `*.dump`, `*.dump.enc` are git-ignored
 - **How it's collected:** a date of birth field at registration, stored in `profiles.birthday`. The server
   rejects under-13 dates. Other members only ever see the month and day.
 - **What it is not:** this is **self-attestation**. Nothing verifies the date or the person's identity.
-- The date of birth is also used for one rule: only members aged 18 or over (by their stated birthday)
-  can put the NSFW tag on a thread, because NSFW threads may contain revealing photos (see §18).
 - Accounts also need a verified email address before posting (in production), one account per person per
   the rules (not technically enforced), and can be deleted by the member (anonymised; posts remain as
   "Deleted member").
@@ -560,9 +558,16 @@ rules and footer. The rules page describes this behaviour.
   latest post, the sidebar, What's new, activity feeds, search results, bookmarks, reputation lists, the
   report queue and the thread page (which also shows a content-warning banner). Alerts about NSFW threads
   are prefixed "[NSFW]".
-- **Tagging:** the author ticks "This thread contains NSFW content" when posting or via Edit thread. Only
-  members aged 18+ (stated birthday) and staff can apply the tag. Moderators can add or remove it on any
+- **Tagging:** the author ticks "This thread contains NSFW content" when posting or via Edit thread. Any
+  member can apply it (it's a tag like the thread prefixes, not a filter) and it can be combined with a
+  prefix. The rules require revealing photos to be of adults (18+). Moderators can add or remove it on any
   thread; a tag set by a moderator can't be removed by the author. Every staff tag change is audit-logged
   (`thread.nsfw_tag` / `thread.nsfw_untag`) and the author is notified.
 - **Enforcement:** members report untagged NSFW or explicit content ("Untagged NSFW content",
   "Pornography or sexually explicit material"); moderators tag, delete, warn or ban as usual.
+
+### Thread prefixes
+Question, LifeFuel, Discussion, Blackpill, Redpill, Mogs, Whitepill, Bluepill, Guide, Serious, Success,
+Motivation, Rage, Looksmax, News, JFL, Theory, Venting, Over, Cope, Slay (one per thread, optional; the
+NSFW tag is separate and can be combined with any prefix). Migration `007_prefixes.sql` mapped the old
+prefixes: Routine → Guide, Glow-Up → Success, Research → Theory, Vent → Venting, Rate Me → none.

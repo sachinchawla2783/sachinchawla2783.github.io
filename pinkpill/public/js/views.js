@@ -310,7 +310,7 @@
       (f.membersOnly ? '<div class="notice">🔒 This is a <b>members-only</b> forum: your thread will be hidden from guests.</div>' : '') +
       (f.ratingEnabled ? '<div class="notice">Posting in <b>' + esc(f.title) + '</b>: you\'re opting in to ratings and feedback. Only post photos of yourself. Revealing photos must be of adults (18+) and tagged NSFW. You can delete your thread at any time.</div>' : '') +
       '<form class="block form" data-form="post-thread" data-forum="' + f.id + '" data-draft="thread-' + f.id + '"><div class="block-body">' +
-      '<div class="row"><select name="prefix" class="prefix-select"><option value="">(No prefix)</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '"' + (f.ratingEnabled && p.id === 'rateme' ? ' selected' : '') + '>' + esc(p.label) + '</option>').join('') + '</select>' +
+      '<div class="row"><select name="prefix" class="prefix-select"><option value="">(No prefix)</option>' + PP.PREFIXES.map((p) => '<option value="' + p.id + '">' + esc(p.label) + '</option>').join('') + '</select>' +
       '<input name="title" class="grow input-title" placeholder="Thread title" maxlength="150" required></div>' +
       editor('content', '', { rows: 12, required: true }) +
       '<label class="field"><span>Tags</span><input name="tags" placeholder="Separate with commas, e.g. skincare, acne"></label>' +
@@ -321,7 +321,7 @@
       '<label class="check"><input type="checkbox" name="poll_multi"> Allow selecting multiple options</label>' +
       '<label class="field"><span>Close poll after (days, blank = never)</span><input name="poll_days" type="number" min="1" max="365"></label></div></details>' : '') +
       (!f.ratingEnabled ? '<label class="check"><input type="checkbox" name="rating_enabled"> ⭐ Enable community ratings on this thread (opt-in)</label>' : '') +
-      '<div class="nsfw-choice">' + (u.canTagNsfw ? '<label class="check"><input type="checkbox" name="nsfw"> ' + nsfwTag(true) + '<b>This thread contains NSFW content</b> (required if it does)</label>' : '<p class="small">' + nsfwTag(true) + 'Only members aged 18 or over can post NSFW-tagged threads.</p>') +
+      '<div class="nsfw-choice"><label class="check"><input type="checkbox" name="nsfw"> ' + nsfwTag(true) + '<b>This thread contains NSFW content</b> (required if it does)</label>' +
       '<p class="small muted">Mature or sensitive but <b>non-explicit</b> content: revealing photos (swimwear, lingerie), graphic before/after photos, strong language or mature discussions. Pornography and sexually explicit material are not allowed, tagged or not. Untagged NSFW posts can be reported and tagged by moderators.</p></div>' +
       '<label class="check"><input type="checkbox" name="watch"' + (u.prefs.autoWatch ? ' checked' : '') + '> Watch this thread and receive alerts for replies</label>' +
       '<div class="form-actions"><button class="btn btn-primary">✚ Post thread</button> <a class="btn" href="#/forums/' + f.id + '">Cancel</a></div></div></form>';
@@ -732,7 +732,7 @@
         '<li><b>Nothing illegal.</b><ul><li>Don\'t post illegal content or encourage anyone to break the law.</li><li>When in doubt, leave it out.</li></ul></li>' +
         '<li><b>Never sexualize minors.</b><ul><li>Anyone under 18 is off-limits, full stop.</li></ul></li>' +
         '<li><b>No pornography or sexually explicit material.</b><ul><li>This applies everywhere, including NSFW-tagged threads.</li></ul></li>' +
-        '<li><b>Tag NSFW content.</b><ul><li>Threads with mature or sensitive but non-explicit content (revealing photos, graphic before/afters, strong language, mature topics) must carry the NSFW tag.</li><li>Revealing photos must be of adults (18+). Only members aged 18 or over can post NSFW-tagged threads.</li><li>Moderators tag untagged NSFW threads; repeatedly skipping the tag can lead to a ban.</li></ul></li>' +
+        '<li><b>Tag NSFW content.</b><ul><li>Threads with mature or sensitive but non-explicit content (revealing photos, graphic before/afters, strong language, mature topics) must carry the NSFW tag.</li><li>Revealing photos must be of adults (18+).</li><li>Moderators tag untagged NSFW threads; repeatedly skipping the tag can lead to a ban.</li></ul></li>' +
         '<li><b>One account per person, and it\'s yours alone.</b><ul><li>Duplicate or shared accounts get every linked account banned.</li></ul></li>' +
         '<li><b>Don\'t post for banned members.</b></li>' +
         '<li><b>No gore or shock content.</b></li>' +

@@ -11,7 +11,9 @@ const { normalizeTags } = require('./content');
 const { syncRefs } = require('./attachments');
 
 const REACTIONS = new Set(['like', 'love', 'glow', 'haha', 'wow', 'hug', 'sad']);
-const PREFIXES = new Set(['question', 'discussion', 'guide', 'routine', 'rateme', 'glowup', 'research', 'serious', 'vent']);
+const PREFIXES = new Set(require('./threads').PREFIXES);
+// Prefixes from the prototype that were renamed.
+const OLD_PREFIX = { routine: 'guide', glowup: 'success', research: 'theory', vent: 'venting' };
 const FORUM_ALIASES = { 'f-general': 'f-looks' };
 
 const str = (v, max, dflt = '') => (typeof v === 'string' ? v.slice(0, max) : dflt);
@@ -122,7 +124,7 @@ async function importLegacy(q, data, { maxRoleRank, actorId }) {
     if (!posts.length) { skipped.push(`thread "${title.slice(0, 40)}" (no posts)`); continue; }
     const row = await q.one(`INSERT INTO threads (forum_id, author_id, title, prefix, sticky, locked, rating_enabled, view_count, created_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-    [forumId, U(t.authorId), title, PREFIXES.has(t.prefix) ? t.prefix : null, !!t.sticky, !!t.locked, !!t.ratingEnabled, Math.max(0, Math.min(1e9, parseInt(t.views, 10) || 0)), date(t.created)]);
+    [forumId, U(t.authorId), title, PREFIXES.has(OLD_PREFIX[t.prefix] || t.prefix) ? (OLD_PREFIX[t.prefix] || t.prefix) : null, !!t.sticky, !!t.locked, !!t.ratingEnabled, Math.max(0, Math.min(1e9, parseInt(t.views, 10) || 0)), date(t.created)]);
     tid[legacyId] = row.id;
     for (const tag of normalizeTags(arr(t.tags).map((x) => str(x, 40)))) await q.query('INSERT INTO thread_tags (thread_id, tag) VALUES ($1, $2) ON CONFLICT DO NOTHING', [row.id, tag]);
     const raters = new Set();

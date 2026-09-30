@@ -27,8 +27,6 @@ async function mePayload(user) {
     walletCents: await vip.walletBalance(user.id),
     // There is no advertising system yet; this flag tells any future ad slot whether to render.
     showAds: !(user.vip && user.vip.noAds),
-    // Used only to explain in the UI why the NSFW option is unavailable; the server enforces it.
-    canTagNsfw: user.isStaff || await require('./threads').isAdultMember(user.id),
     usernameChangedAt: row.username_changed_at,
     vanity: row.vanity || null,
     vanityChangedAt: row.vanity_changed_at,

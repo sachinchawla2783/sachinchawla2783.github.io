@@ -1,6 +1,6 @@
 'use strict';
 /* Age policy (13+) and the NSFW content-warning tag: shown everywhere a thread appears, never used to hide
-   content by age; only 18+ members and staff can apply it; staff tags are locked and audited. */
+   content by age; any member can apply it to their own thread; staff tags are locked and audited. */
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { setup, teardown, client, member, db, lastMail } = require('./helpers');
@@ -35,8 +35,6 @@ test('members under 18 can register from age 13; under-13s cannot', async () => 
   assert.match(young.body.error.message, /13 or older/);
   teen = await registerWithBirthday('teenmember', yearsAgo(15));
   assert.ok(teen.user, 'a 15-year-old can register');
-  assert.equal(teen.user.canTagNsfw, false);
-  assert.equal(adult.user.canTagNsfw, true);
 });
 
 test('NSFW tag appears wherever the thread is surfaced, for guests, teens and adults alike', async () => {
@@ -67,13 +65,15 @@ test('NSFW tag appears wherever the thread is surfaced, for guests, teens and ad
   assert.equal((await guest.get('/api/threads/' + plain.body.thread.id)).body.thread.nsfw, false);
 });
 
-test('only 18+ members and staff can apply the NSFW tag', async () => {
-  const r = await teen.post('/api/forums/f-style/threads', { title: 'Teen thread tagged', content: 'x', nsfw: true });
-  assert.equal(r.status, 403);
-  assert.equal(r.body.error.code, 'nsfw_adults_only');
+test('any member can tag their own thread NSFW (it is a tag, not a filter); staff can tag any thread', async () => {
+  const r = await teen.post('/api/forums/f-style/threads', { title: 'Teen thread tagged', content: 'strong language', nsfw: true, prefix: 'rage' });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal((await guest.get('/api/threads/' + r.body.thread.id)).body.thread.nsfw, true);
+  assert.equal((await guest.get('/api/threads/' + r.body.thread.id)).body.thread.prefix, 'rage', 'NSFW combines with a prefix');
   const ok = await teen.post('/api/forums/f-style/threads', { title: 'Teen normal thread', content: 'x' });
   assert.equal(ok.status, 201);
-  assert.equal((await teen.patch('/api/threads/' + ok.body.thread.id, { nsfw: true })).status, 403);
+  assert.equal((await teen.patch('/api/threads/' + ok.body.thread.id, { nsfw: true })).status, 200);
+  assert.equal((await teen.patch('/api/threads/' + ok.body.thread.id, { nsfw: false })).status, 200);
   // Members can't tag other people's threads.
   assert.equal((await adult.patch('/api/threads/' + ok.body.thread.id, { nsfw: true })).status, 403);
   // Staff can tag anything; it's audited and the author is told.
@@ -81,6 +81,15 @@ test('only 18+ members and staff can apply the NSFW tag', async () => {
   assert.equal((await guest.get('/api/threads/' + ok.body.thread.id)).body.thread.nsfw, true);
   assert.ok(await db.one("SELECT 1 FROM audit_log WHERE action = 'thread.nsfw_tag' AND target_id = $1", [ok.body.thread.id]));
   assert.ok(await db.one("SELECT 1 FROM notifications WHERE user_id = $1 AND type = 'moderation' AND text LIKE '%as NSFW%'", [teen.user.id]));
+});
+
+test('the new prefix set is accepted and old prefixes are rejected', async () => {
+  for (const p of ['question', 'lifefuel', 'blackpill', 'redpill', 'mogs', 'whitepill', 'bluepill', 'jfl', 'over', 'cope', 'slay', 'looksmax']) {
+    assert.equal((await adult.post('/api/forums/f-offtopic/threads', { title: 'Prefix ' + p, content: 'x', prefix: p })).status, 201, p);
+  }
+  for (const p of ['rateme', 'routine', 'glowup', 'vent', 'nsfw']) {
+    assert.equal((await adult.post('/api/forums/f-offtopic/threads', { title: 'Old ' + p, content: 'x', prefix: p })).status, 422, p);
+  }
 });
 
 test('a tag set by staff cannot be removed by the author; author-set tags can', async () => {

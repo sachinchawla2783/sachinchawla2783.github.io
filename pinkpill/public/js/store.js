@@ -26,14 +26,26 @@
 
   PP.PREFIXES = [
     { id: 'question', label: 'Question', color: '#3b82f6' },
+    { id: 'lifefuel', label: 'LifeFuel', color: '#16a34a' },
     { id: 'discussion', label: 'Discussion', color: '#8b5cf6' },
+    { id: 'blackpill', label: 'Blackpill', color: '#111827' },
+    { id: 'redpill', label: 'Redpill', color: '#dc2626' },
+    { id: 'mogs', label: 'Mogs', color: '#c026d3' },
+    { id: 'whitepill', label: 'Whitepill', color: '#64748b' },
+    { id: 'bluepill', label: 'Bluepill', color: '#2563eb' },
     { id: 'guide', label: 'Guide', color: '#10b981' },
-    { id: 'routine', label: 'Routine', color: '#f59e0b' },
-    { id: 'rateme', label: 'Rate Me', color: '#ec4899' },
-    { id: 'glowup', label: 'Glow-Up', color: '#e11d48' },
-    { id: 'research', label: 'Research', color: '#0ea5e9' },
     { id: 'serious', label: 'Serious', color: '#475569' },
-    { id: 'vent', label: 'Vent', color: '#64748b' },
+    { id: 'success', label: 'Success', color: '#059669' },
+    { id: 'motivation', label: 'Motivation', color: '#f59e0b' },
+    { id: 'rage', label: 'Rage', color: '#b91c1c' },
+    { id: 'looksmax', label: 'Looksmax', color: '#ec4899' },
+    { id: 'news', label: 'News', color: '#0ea5e9' },
+    { id: 'jfl', label: 'JFL', color: '#ea580c' },
+    { id: 'theory', label: 'Theory', color: '#6366f1' },
+    { id: 'venting', label: 'Venting', color: '#78716c' },
+    { id: 'over', label: 'Over', color: '#1f2937' },
+    { id: 'cope', label: 'Cope', color: '#a16207' },
+    { id: 'slay', label: 'Slay', color: '#db2777' },
   ];
 
   PP.ROLE_TITLES = { member: 'Registered member', moderator: 'Moderator', admin: 'Administrator', super_admin: 'Super administrator' };

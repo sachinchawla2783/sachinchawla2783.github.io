@@ -10,7 +10,7 @@ const THREADS_PER_PAGE = 20;
 const REACTIONS = ['like', 'love', 'glow', 'haha', 'wow', 'hug', 'sad'];
 // Custom reactions: only members whose active VIP membership includes custom reactions may use these.
 const VIP_REACTIONS = ['fire', 'crown', 'gem', 'butterfly'];
-const PREFIXES = ['question', 'discussion', 'guide', 'routine', 'rateme', 'glowup', 'research', 'serious', 'vent'];
+const PREFIXES = ['question', 'lifefuel', 'discussion', 'blackpill', 'redpill', 'mogs', 'whitepill', 'bluepill', 'guide', 'serious', 'success', 'motivation', 'rage', 'looksmax', 'news', 'jfl', 'theory', 'venting', 'over', 'cope', 'slay'];
 
 /* Load a thread the viewer is allowed to see, or 404 (never 403, so hidden threads don't leak). */
 async function loadThread(id, user, q = db) {
@@ -67,12 +67,6 @@ async function isAdultMember(userId, q = db) {
   return !!(r && r.adult);
 }
 
-/* NSFW-tagged threads may contain revealing photos, so members under 18 can't start them (staff can tag anything). */
-async function assertMayTagNsfw(user, q = db) {
-  if (user.isStaff || await isAdultMember(user.id, q)) return;
-  throw new HttpError(403, 'nsfw_adults_only', 'Only members aged 18 or over can post NSFW-tagged threads.');
-}
-
 /* How long (minutes) this member may edit their own posts. 0 = no limit. VIP+ raises it. */
 async function editWindowMinutes(user, q = db) {
   const base = Number(await settings.get('post_edit_window_minutes', 60)) || 0;
@@ -115,4 +109,4 @@ async function participantLimit(user) {
 }
 
 module.exports = { POSTS_PER_PAGE, THREADS_PER_PAGE, REACTIONS, VIP_REACTIONS, PREFIXES, loadThread, loadPost, refreshThreadStats, assertNotFlooding, repPower,
-  editWindowMinutes, assertWithinEditWindow, assertCanDeleteOwnThread, participantLimit, isAdultMember, assertMayTagNsfw };
+  editWindowMinutes, assertWithinEditWindow, assertCanDeleteOwnThread, participantLimit, isAdultMember };

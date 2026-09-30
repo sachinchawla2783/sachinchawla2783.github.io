@@ -207,7 +207,6 @@ router.post('/forums/:id/threads', limits.thread, async (req, res) => {
     if (new Set(d.poll.options.map((o) => o.toLowerCase())).size !== d.poll.options.length) throw invalid('Poll options must be different.');
   }
   assertSafeContent(d.content);
-  if (d.nsfw) await T.assertMayTagNsfw(req.user);
   await T.assertNotFlooding(req.user);
   const tags = normalizeTags(d.tags);
   const result = await db.tx(async (q) => {
@@ -389,8 +388,7 @@ router.patch('/threads/:id', async (req, res) => {
   if ('nsfw' in d && d.nsfw !== t.nsfw) {
     if (!staffTag) {
       if (!(own && can(me, 'post.edit_own'))) throw forbidden();
-      if (d.nsfw) await T.assertMayTagNsfw(me);
-      else if (t.nsfw_set_by === 'staff') throw forbidden('A moderator tagged this thread NSFW; only staff can remove the tag.');
+      if (!d.nsfw && t.nsfw_set_by === 'staff') throw forbidden('A moderator tagged this thread NSFW; only staff can remove the tag.');
     }
   }
   if ('sticky' in d) assertCan(me, 'mod.sticky');
