@@ -731,7 +731,7 @@
         '<li><b>Don\'t revive dead threads.</b><ul><li>Leave threads older than a month alone unless you\'re adding something real.</li><li>Bumping, one-word replies, quotes or “this” don\'t count.</li></ul></li>' +
         '<li><b>Nothing illegal.</b><ul><li>Don\'t post illegal content or encourage anyone to break the law.</li><li>When in doubt, leave it out.</li></ul></li>' +
         '<li><b>Never sexualize minors.</b><ul><li>Anyone under 18 is off-limits, full stop.</li></ul></li>' +
-        '<li><b>Tag NSFW content.</b><ul><li>Threads with mature or sensitive but non-explicit content (revealing photos, graphic before/afters, strong language, mature topics) must carry the NSFW tag.</li><li>Revealing photos must be of adults (18+).</li><li>Moderators tag untagged NSFW threads; repeatedly skipping the tag can lead to a ban.</li></ul></li>' +
+        '<li><b>Tag NSFW content.</b><ul><li>Threads with mature or sensitive must carry the NSFW tag.</li><li>Moderators tag untagged NSFW threads; repeatedly skipping the tag can lead to a ban.</li></ul></li>' +
         '<li><b>One account per person, and it\'s yours alone.</b><ul><li>Duplicate or shared accounts get every linked account banned.</li></ul></li>' +
         '<li><b>Don\'t post for banned members.</b></li>' +
         '<li><b>No gore or shock content.</b></li>' +
