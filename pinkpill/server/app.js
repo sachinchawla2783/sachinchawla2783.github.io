@@ -136,6 +136,15 @@ function createApp(opts = {}) {
   app.get(['/vip', '/vip/checkout/:slug', '/vip/gift/:slug', '/vip/return', '/account/vip', '/account/purchases'], pageRedirect(true));
   app.get('/u/:slug', pageRedirect(false));
 
+  /* The page links its scripts and styles with ?v=<deploy version>, so every deploy gets fresh asset URLs
+     and no browser can keep running an old copy (Safari in particular caches aggressively). */
+  const ASSET_VERSION = (process.env.RENDER_GIT_COMMIT || String(Date.now())).slice(0, 12).replace(/[^\w]/g, '');
+  const indexHtml = require('node:fs').readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8')
+    .replace(/(href|src)="((?:css|js)\/[\w.-]+\.(?:css|js))"/g, `$1="$2?v=${ASSET_VERSION}"`);
+  app.get(['/', '/index.html'], (req, res) => {
+    res.set('Cache-Control', 'no-cache').type('html').send(indexHtml);
+  });
+
   app.use(express.static(path.join(__dirname, '..', 'public'), {
     index: 'index.html',
     // Asset URLs aren't versioned, so browsers must revalidate (cheap 304 via ETag); otherwise a deploy

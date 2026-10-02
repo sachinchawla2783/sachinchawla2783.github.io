@@ -321,6 +321,9 @@ test('production: JS and CSS are revalidated on every load so a deploy shows up 
   try {
     assert.ok(s.started, s.output());
     const h = { Host: 'pinkpill.test', 'X-Forwarded-Proto': 'https' };
+    const page = await raw(s.port, 'GET', '/', h);
+    assert.match(page.body, /src="js\/app\.js\?v=\w+"/, 'scripts are versioned per deploy');
+    assert.match(page.body, /href="css\/style\.css\?v=\w+"/, 'styles are versioned per deploy');
     for (const file of ['/js/vip.js', '/css/style.css', '/']) {
       const r = await raw(s.port, 'GET', file, h);
       assert.equal(r.status, 200, file);
