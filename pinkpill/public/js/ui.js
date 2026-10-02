@@ -57,6 +57,20 @@
     if (t >= 1) return { cls: ' username--tier', style: '--th:' + tierHue(t) };
     return null;
   }
+  /* Owner style picker (shown on the owner's VIP membership page). */
+  function ownerStyleForm(u) {
+    const cur = u.special || {};
+    const NAMES = { rainbow: 'Rainbow', galaxy: 'Galaxy', inferno: 'Inferno', frost: 'Frost', royal: 'Royal gold', toxic: 'Toxic', sakura: 'Sakura', midnight: 'Midnight' };
+    const FX = { flow: 'Flowing colours', pulse: 'Pulsing glow', sparkle: 'Sparkle', neon: 'Neon' };
+    const sample = (c, fx) => '<span class="username username--special sp--' + c + (fx ? ' spfx--' + fx : '') + '">' + esc(u.username) + '</span>';
+    return '<form class="block form" data-form="owner-style"><h3 class="block-head">✨ Owner style <span class="small muted">— only you can use these</span></h3><div class="block-body">' +
+      '<p class="small muted">Special username colours and effects reserved for the owner. They replace any VIP colour.</p>' +
+      '<div class="field"><span>Colour</span><div class="owner-swatches">' +
+      '<label class="vip-choice"><input type="radio" name="color" value=""' + (!cur.color ? ' checked' : '') + '> None</label>' +
+      SPECIAL_COLORS.map((c) => '<label class="vip-choice"><input type="radio" name="color" value="' + c + '"' + (cur.color === c ? ' checked' : '') + '> ' + sample(c, 'flow') + ' <span class="small muted">' + NAMES[c] + '</span></label>').join('') + '</div></div>' +
+      '<label class="field"><span>Effect</span><select name="effect"><option value="">None</option>' + SPECIAL_EFFECTS.map((x) => '<option value="' + x + '"' + (cur.effect === x ? ' selected' : '') + '>' + FX[x] + '</option>').join('') + '</select></label>' +
+      '<div class="form-actions"><button class="btn btn-primary">Save owner style</button> <span class="small muted">Now: ' + username(u) + '</span></div></div></form>';
+  }
   function username(u, cls) {
     if (!u || u.deleted) return '<span class="username">Deleted member</span>';
     const role = u.role === 'admin' || u.role === 'global_admin' || u.role === 'super_admin' ? ' username--admin' : u.role === 'moderator' ? ' username--mod' : '';
@@ -264,5 +278,5 @@
     el.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - el.offsetWidth - 8)) + 'px';
   }
 
-  window.PP.ui = { nsfwTag, safeColor, vipName, tierHue, ownerBadge, SPECIAL_COLORS, SPECIAL_EFFECTS, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
+  window.PP.ui = { ownerStyleForm, nsfwTag, safeColor, vipName, tierHue, ownerBadge, SPECIAL_COLORS, SPECIAL_EFFECTS, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
 })();
