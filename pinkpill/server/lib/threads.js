@@ -58,7 +58,7 @@ async function assertNotFlooding(user, q = db) {
 async function repPower(userId, role, q = db) {
   const r = await q.one('SELECT count(*)::int AS n FROM posts WHERE author_id = $1 AND deleted_at IS NULL', [userId]);
   const base = Math.min(5, 1 + Math.floor(r.n / 100));
-  return base + (role === 'admin' || role === 'super_admin' ? 2 : role === 'moderator' ? 1 : 0);
+  return base + (role === 'admin' || role === 'global_admin' || role === 'super_admin' ? 2 : role === 'moderator' ? 1 : 0);
 }
 
 /* Is this member 18 or older according to their date of birth? Unknown birthdays count as "no". */

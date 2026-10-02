@@ -2,7 +2,7 @@
 /* Imports the browser-only prototype's JSON export (localStorage `pinkpill.db.v1`) into PostgreSQL.
  * The input is treated as untrusted: every field is type-checked and length-limited, ids are remapped,
  * images embedded as data: URLs are decoded and re-encoded through the normal upload pipeline, and
- * imported roles are capped below the importer's own rank. Imported members have no password; they
+ * imported members never get a staff role (only the owner assigns roles). Imported members have no password; they
  * claim their account with "Forgot your password?". Existing usernames are never overwritten. */
 const crypto = require('node:crypto');
 const { processImage } = require('./images');
@@ -50,14 +50,13 @@ async function cleanContent(q, text, ownerId, max) {
   return s || '(empty)';
 }
 
-async function importLegacy(q, data, { maxRoleRank, actorId }) {
+async function importLegacy(q, data, { actorId }) {
   data = obj(data);
   if (!Array.isArray(data.users) || !Array.isArray(data.threads) || !Array.isArray(data.posts)) {
     const e = new Error('This does not look like a PinkPill prototype export (users/threads/posts missing).'); e.status = 422; throw e;
   }
   const counts = { members: 0, threads: 0, posts: 0, reactions: 0, reputation: 0, polls: 0, votes: 0, profilePosts: 0, conversations: 0, messages: 0, follows: 0, bookmarks: 0, warnings: 0, bans: 0 };
   const skipped = [];
-  const roleRank = { member: 10, moderator: 50, admin: 80 };
   // Prototype-free maps: legacy ids like "__proto__" can't reach Object.prototype.
   const uid = Object.create(null);      // legacy user id -> db id
   const tid = Object.create(null);      // legacy thread id -> db id
@@ -76,8 +75,7 @@ async function importLegacy(q, data, { maxRoleRank, actorId }) {
       skipped.push(`member ${username} (username taken)`); continue;
     }
     if (email && await q.one('SELECT 1 FROM users WHERE email = $1', [email])) email = null;
-    let role = u.role === 'admin' ? 'admin' : u.role === 'mod' ? 'moderator' : 'member';
-    if (roleRank[role] >= maxRoleRank) role = 'member';
+    const role = 'member';
     const row = await q.one(`INSERT INTO users (username, email, password_hash, role_id, status, created_at, last_seen_at)
       VALUES ($1, $2, NULL, $3, 'unverified', $4, $5) RETURNING id`, [username, email, role, date(u.joined), date(u.lastSeen || u.joined)]);
     uid[legacyId] = row.id;

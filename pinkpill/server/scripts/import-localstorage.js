@@ -14,7 +14,7 @@ const { importLegacy } = require('../lib/importer');
   const data = JSON.parse(fs.readFileSync(file, 'utf8'));
   await migrate(db.pool, { log: () => {} });
   const r = await db.tx(async (q) => {
-    const out = await importLegacy(q, data, { maxRoleRank: 100, actorId: null });
+    const out = await importLegacy(q, data, { actorId: null });
     await q.query(`INSERT INTO audit_log (actor_id, action, target_type, details) VALUES (NULL, 'data.import', 'import', $1)`, [JSON.stringify({ imported: out.imported, skipped: out.skipped.length, via: 'cli' })]);
     return out;
   });

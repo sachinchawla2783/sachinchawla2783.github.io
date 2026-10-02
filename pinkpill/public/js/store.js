@@ -49,7 +49,7 @@
     { id: 'rateme', label: 'Rate Me', color: '#ec4899' },
   ];
 
-  PP.ROLE_TITLES = { member: 'Registered member', moderator: 'Moderator', admin: 'Administrator', super_admin: 'Super administrator' };
+  PP.ROLE_TITLES = { member: 'Registered member', moderator: 'Moderator', admin: 'Admin', global_admin: 'Global Admin', super_admin: 'Owner' };
 
   function repLevel(total) {
     if (total >= 250) return { label: 'Legendary', cls: 'rep--5' };

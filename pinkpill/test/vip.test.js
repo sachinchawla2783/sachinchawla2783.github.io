@@ -94,7 +94,7 @@ before(async () => {
   carol = await member({ username: 'carol' });
   dave = await member({ username: 'dave' });
   mod = await member({ username: 'moddy', role: 'moderator' });
-  admin = await member({ username: 'boss', role: 'admin' });
+  admin = await member({ username: 'boss', role: 'super_admin' });
   guest = client();
 });
 after(async () => { await teardown(); stubServer.close(); });

@@ -22,6 +22,8 @@
     return { cls, style };
   }
   const frameAttr = (u) => (u && u.vip && HEX.test(u.vip.frame || '') ? { cls: ' avatar--frame', style: '--frame:' + u.vip.frame + ';' } : { cls: '', style: '' });
+  /* The owner's black check, shown next to their name everywhere. */
+  const ownerBadge = (u) => (u && u.role === 'super_admin' && !u.deleted ? '<span class="owner-badge" title="Owner" aria-label="Owner">✔</span>' : '');
   const verifiedBadge = (u) => (u && u.vip && u.vip.badge ? '<span class="vip-verified" title="Lifetime VIP" aria-label="Lifetime VIP">✔</span>' : '');
 
   function avatar(u, size) {
@@ -35,9 +37,9 @@
 
   function username(u, cls) {
     if (!u || u.deleted) return '<span class="username">Deleted member</span>';
-    const role = u.role === 'admin' || u.role === 'super_admin' ? ' username--admin' : u.role === 'moderator' ? ' username--mod' : '';
+    const role = u.role === 'admin' || u.role === 'global_admin' || u.role === 'super_admin' ? ' username--admin' : u.role === 'moderator' ? ' username--mod' : '';
     const v = vipName(u);
-    return '<a href="#/members/' + u.id + '" class="username' + role + v.cls + (u.banned ? ' username--banned' : '') + ' ' + (cls || '') + '"' + (v.style ? ' style="' + v.style + '"' : '') + ' data-user-tip="' + u.id + '">' + esc(u.username) + '</a>' + verifiedBadge(u);
+    return '<a href="#/members/' + u.id + '" class="username' + role + v.cls + (u.banned ? ' username--banned' : '') + ' ' + (cls || '') + '"' + (v.style ? ' style="' + v.style + '"' : '') + ' data-user-tip="' + u.id + '">' + esc(u.username) + '</a>' + ownerBadge(u) + verifiedBadge(u);
   }
 
   function userTitle(u) {
@@ -49,7 +51,9 @@
 
   function roleBanner(u) {
     if (!u) return '';
-    if (u.role === 'admin' || u.role === 'super_admin') return '<div class="role-banner role-banner--admin">Administrator</div>';
+    if (u.role === 'super_admin') return '<div class="role-banner role-banner--owner">Owner</div>';
+    if (u.role === 'global_admin') return '<div class="role-banner role-banner--admin">Global Admin</div>';
+    if (u.role === 'admin') return '<div class="role-banner role-banner--admin">Admin</div>';
     if (u.role === 'moderator') return '<div class="role-banner role-banner--mod">Moderator</div>';
     return '';
   }
@@ -235,5 +239,5 @@
     el.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - el.offsetWidth - 8)) + 'px';
   }
 
-  window.PP.ui = { nsfwTag, safeColor, vipName, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
+  window.PP.ui = { nsfwTag, safeColor, vipName, ownerBadge, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
 })();

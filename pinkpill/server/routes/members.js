@@ -75,7 +75,7 @@ router.get('/members', async (req, res) => {
     };
   } else if (q.tab === 'staff') {
     payload = {
-      admins: await ids(`SELECT u.id FROM users u WHERE ${active} AND u.role_id IN ('admin', 'super_admin') ORDER BY u.created_at`),
+      admins: await ids(`SELECT u.id FROM users u WHERE ${active} AND u.role_id IN ('admin', 'global_admin', 'super_admin') ORDER BY u.role_id = 'super_admin' DESC, u.role_id = 'global_admin' DESC, u.created_at`),
       moderators: await ids(`SELECT u.id FROM users u WHERE ${active} AND u.role_id = 'moderator' ORDER BY u.created_at`),
     };
   } else {
@@ -172,7 +172,7 @@ router.get('/members/:id', async (req, res) => {
       report: !!me && !isMe && can(me, 'report.create'),
       warn: !isMe && can(me, 'mod.warn') && me.rank > m.rank,
       ban: !isMe && can(me, 'mod.ban') && me.rank > m.rank,
-      setRole: !isMe && can(me, 'admin.users') && me.rank > m.rank,
+      setRole: !isMe && can(me, 'admin.permissions') && me.rank > m.rank,
       viewWarnings: can(me, 'mod.warn'),
     },
   });

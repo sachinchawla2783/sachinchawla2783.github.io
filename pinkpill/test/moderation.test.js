@@ -3,7 +3,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { setup, teardown, client, member, db } = require('./helpers');
 
-let alice, bob, mod, mod2, admin, superAdmin, guest;
+let alice, bob, mod, mod2, admin, superAdmin, guest, plainAdmin;
 
 before(async () => {
   await setup();
@@ -12,7 +12,8 @@ before(async () => {
   bob = await member({ username: 'bob' });
   mod = await member({ username: 'mod', role: 'moderator' });
   mod2 = await member({ username: 'mod2', role: 'moderator' });
-  admin = await member({ username: 'admin', role: 'admin' });
+  admin = await member({ username: 'admin', role: 'global_admin' });
+  plainAdmin = await member({ username: 'plainadmin', role: 'admin' });
   superAdmin = await member({ username: 'root', role: 'super_admin' });
   guest = client();
 });
@@ -121,17 +122,32 @@ test('rank rules: moderators cannot act on peers or admins; no self-moderation',
   assert.equal((await admin.post(`/api/mod/users/${superAdmin.user.id}/ban`, { reason: 'x' })).status, 403);
 });
 
-test('roles: admins manage members but cannot create admins or edit higher ranks', async () => {
-  assert.equal((await admin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'moderator' })).status, 200);
-  assert.equal((await alice.get('/api/mod/reports')).status, 200, 'promotion is effective immediately');
-  assert.equal((await admin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'admin' })).status, 403);
-  assert.equal((await admin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'super_admin' })).status, 403);
-  assert.equal((await admin.patch(`/api/admin/users/${superAdmin.user.id}/role`, { role: 'member' })).status, 403);
+test('roles: only the owner assigns roles; staff tiers have limited powers', async () => {
+  // Nobody below the owner can change anyone's role, not even to moderator.
+  for (const c of [mod, plainAdmin, admin]) {
+    assert.equal((await c.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'moderator' })).status, 403);
+  }
   assert.equal((await admin.patch(`/api/admin/users/${admin.user.id}/role`, { role: 'super_admin' })).status, 403);
-  assert.equal((await admin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'ghost' })).status, 422);
-  assert.equal((await superAdmin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'admin' })).status, 200);
+  assert.equal((await superAdmin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'ghost' })).status, 422);
+  assert.equal((await superAdmin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'super_admin' })).status, 403, 'there is one owner');
+  for (const role of ['moderator', 'admin', 'global_admin']) {
+    assert.equal((await superAdmin.patch(`/api/admin/users/${alice.user.id}/role`, { role })).status, 200, role);
+    assert.equal((await alice.get('/api/mod/reports')).status, 200, role + ' can moderate immediately');
+  }
+  // Global admin: members and forums, but never settings, VIP, imports or permissions.
+  assert.equal((await alice.get('/api/admin/accounts')).status, 200);
+  assert.equal((await alice.patch('/api/admin/settings', { registration_open: true })).status, 403);
+  assert.equal((await alice.get('/api/admin/vip/orders')).status, 403);
+  assert.equal((await alice.put('/api/admin/roles/member/permissions', { permissions: [] })).status, 403);
+  // Admin: moderation and stats only.
+  assert.equal((await plainAdmin.get('/api/admin/stats')).status, 200);
+  assert.equal((await plainAdmin.get('/api/admin/accounts')).status, 403);
+  assert.equal((await plainAdmin.post('/api/admin/categories', { title: 'Nope' })).status, 403);
+  // Moderator: no admin panel at all.
+  assert.equal((await mod.get('/api/admin/stats')).status, 403);
   assert.equal((await superAdmin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'member' })).status, 200);
   assert.equal((await alice.get('/api/mod/reports')).status, 403, 'demotion is effective immediately');
+  assert.ok(await db.one("SELECT 1 FROM audit_log WHERE action = 'user.role' AND actor_id = $1", [superAdmin.user.id]));
 });
 
 test('permissions: only super admins edit role permissions; changes take effect', async () => {
@@ -169,12 +185,12 @@ test('forum management: create, nest, members-only, delete rules, audit', async 
 });
 
 test('site settings: validated, audited, applied', async () => {
-  assert.equal((await admin.patch('/api/admin/settings', { flood_seconds: -5 })).status, 422);
-  assert.equal((await admin.patch('/api/admin/settings', { evil_key: 1 })).status, 422);
-  assert.equal((await admin.patch('/api/admin/settings', { registration_open: false })).status, 200);
+  assert.equal((await superAdmin.patch('/api/admin/settings', { flood_seconds: -5 })).status, 422);
+  assert.equal((await superAdmin.patch('/api/admin/settings', { evil_key: 1 })).status, 422);
+  assert.equal((await superAdmin.patch('/api/admin/settings', { registration_open: false })).status, 200);
   const r = await client().post('/api/auth/register', { username: 'late', email: 'late@example.com', password: 'hunter2hunter2', birthday: '1990-01-01', agree: true });
   assert.equal(r.status, 403);
-  assert.equal((await admin.patch('/api/admin/settings', { registration_open: true })).status, 200);
+  assert.equal((await superAdmin.patch('/api/admin/settings', { registration_open: true })).status, 200);
   const st = await admin.get('/api/admin/stats');
   assert.ok(st.body.stats.members >= 6);
   assert.equal(st.body.days.length, 14);

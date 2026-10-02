@@ -10,7 +10,7 @@ let admin, superAdmin, alice, guest;
 
 before(async () => {
   await setup();
-  admin = await member({ username: 'boss', role: 'admin' });
+  admin = await member({ username: 'boss', role: 'super_admin' });
   superAdmin = await member({ username: 'root', role: 'super_admin' });
   alice = await member({ username: 'alice' });
   guest = client();
@@ -39,14 +39,14 @@ test('imports the prototype export into the relational schema', async () => {
   assert.ok(await db.one("SELECT 1 FROM audit_log WHERE action = 'data.import'"));
 });
 
-test('imported data is sanitised: roles capped, images re-encoded, unsafe markup removed, reps validated', async () => {
-  // The prototype's admin ("Aurora") can't become an admin when imported by an admin (rank cap).
+test('imported data is sanitised: no staff roles, images re-encoded, unsafe markup removed, reps validated', async () => {
+  // Imported staff (the prototype's admin "Aurora" and moderator "Celeste") arrive as members; the owner assigns roles.
   const aurora = await db.one("SELECT role_id, password_hash, status FROM users WHERE username = 'Aurora'");
   assert.equal(aurora.role_id, 'member');
   assert.equal(aurora.password_hash, null);
   assert.equal(aurora.status, 'unverified');
   const mod = await db.one("SELECT role_id FROM users WHERE username = 'Celeste'");
-  assert.equal(mod.role_id, 'moderator');
+  assert.equal(mod.role_id, 'member');
   // data: URL images became /media uploads
   assert.equal((await db.one("SELECT count(*)::int AS n FROM posts WHERE content LIKE '%data:image%'")).n, 0);
   assert.ok((await db.one("SELECT count(*)::int AS n FROM posts WHERE content ~ '\\[img\\]/media/[0-9a-f-]{36}\\[/img\\]'")).n >= 1);
@@ -67,14 +67,14 @@ test('re-importing does not duplicate or hijack existing members', async () => {
   assert.equal((await db.one('SELECT count(*)::int AS n FROM users')).n, before);
 });
 
-test('a super admin import keeps prototype admins as administrators (never super admins)', async () => {
+test('even the owner\'s import never grants staff roles', async () => {
   await db.query("UPDATE users SET username = 'aurora-old' WHERE username = 'Aurora'");
   const data = JSON.parse(JSON.stringify(fixture));
   data.users = data.users.filter((u) => u.username === 'Aurora');
   data.threads = []; data.posts = [];
   const r = await superAdmin.post('/api/admin/import', Object.assign(data, { threads: [], posts: [] }));
   assert.equal(r.status, 200);
-  assert.equal((await db.one("SELECT role_id FROM users WHERE username = 'Aurora'")).role_id, 'admin');
+  assert.equal((await db.one("SELECT role_id FROM users WHERE username = 'Aurora'")).role_id, 'member');
 });
 
 test('imported members claim their account with a password reset (which also verifies the email)', async () => {

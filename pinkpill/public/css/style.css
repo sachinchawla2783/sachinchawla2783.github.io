@@ -229,6 +229,7 @@ a.block:hover { text-decoration: none; border-color: var(--pink); }
 .mention { font-weight: 600; background: var(--pink-soft); padding: 0 3px; border-radius: 3px; }
 .role-banner { display: inline-block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 2px 10px; border-radius: 4px; color: #fff; margin: 4px 0; }
 .role-banner--admin { background: linear-gradient(90deg, #c026d3, #db2777); }
+.role-banner--owner { background: #111; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
 .role-banner--mod { background: linear-gradient(90deg, #2563eb, #7c3aed); }
 .badge { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; background: var(--pink-soft); color: var(--pink-strong); }
 .badge--red { background: var(--danger); color: #fff; }
@@ -548,6 +549,8 @@ section.block > .table { margin: 0; }
 @keyframes vip-shimmer { from { background-position: 150% 0, 0 0; } to { background-position: -150% 0, 0 0; } }
 .vipfx--sparkle::after { content: " ✨"; font-size: .8em; }
 @media (prefers-reduced-motion: reduce) { .vipfx--shimmer { animation: none; } }
+/* Owner: black circle, white check; the light ring keeps it visible on dark themes. */
+.owner-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.05em; height: 1.05em; margin-left: 3px; border-radius: 50%; background: #000; color: #fff; font-size: .7em; font-weight: 800; vertical-align: .1em; box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
 .vip-verified { display: inline-flex; align-items: center; justify-content: center; width: 1.05em; height: 1.05em; margin-left: 3px; border-radius: 50%; background: var(--vip-grad); color: #fff; font-size: .7em; font-weight: 800; vertical-align: .1em; }
 .avatar.avatar--frame { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--frame); }
 .avatar-l.avatar--frame, .avatar-xl.avatar--frame { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--frame); }

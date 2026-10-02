@@ -27,7 +27,7 @@ const adminAlerts = async () => (await db.many("SELECT text, link FROM notificat
 
 before(async () => {
   await setup();
-  admin = await member({ username: 'siteadmin', role: 'admin' });
+  admin = await member({ username: 'siteadmin', role: 'super_admin' });
   mod = await member({ username: 'justmod', role: 'moderator' });
   plain = await member({ username: 'plainuser' });
 });

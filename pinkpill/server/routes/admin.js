@@ -84,6 +84,8 @@ router.get('/users/:id/signals', async (req, res) => {
 
 router.patch('/users/:id/role', async (req, res) => {
   assertCan(req.user, 'admin.users');
+  // Only the owner assigns staff roles.
+  assertCan(req.user, 'admin.permissions');
   const { role } = parse(z.object({ role: z.string().regex(/^[a-z_]{2,32}$/) }).strict(), req.body);
   const all = await roles();
   const target = await db.one('SELECT u.id, u.username, u.role_id, u.status FROM users u WHERE u.id = $1', [idParam(req.params.id)]);
@@ -286,7 +288,7 @@ router.post('/import', async (req, res) => {
   let result;
   try {
     result = await db.tx(async (q) => {
-      const r = await importLegacy(q, req.body, { maxRoleRank: req.user.rank, actorId: req.user.id });
+      const r = await importLegacy(q, req.body, { actorId: req.user.id });
       await audit(q, req, 'data.import', 'import', null, { imported: r.imported, skipped: r.skipped.length });
       return r;
     });
