@@ -316,6 +316,17 @@ test('production mode refuses unsafe or incomplete configuration', async () => {
   }
 });
 
+test('Render: TRUST_PROXY=1 trusts one proxy hop, so HTTPS requests on the canonical host are not redirected', async () => {
+  const s = await startProd({ APP_URL: '', RENDER_EXTERNAL_URL: 'https://pinkpill-demo.onrender.com', TRUST_PROXY: '1' });
+  try {
+    assert.ok(s.started, s.output());
+    const ok = await raw(s.port, 'GET', '/forums', { Host: 'pinkpill-demo.onrender.com', 'X-Forwarded-Proto': 'https' });
+    assert.notEqual(ok.status, 301, 'no redirect loop behind Render\'s proxy');
+    const http = await raw(s.port, 'GET', '/forums', { Host: 'pinkpill-demo.onrender.com', 'X-Forwarded-Proto': 'http' });
+    assert.equal(http.status, 301);
+    assert.equal(http.headers.location, 'https://pinkpill-demo.onrender.com/forums');
+  } finally { s.child.kill('SIGTERM'); }
+});
 test('Render: listens on $PORT and uses RENDER_EXTERNAL_URL as the canonical URL until APP_URL is set', async () => {
   const s = await startProd({ APP_URL: '', RENDER_EXTERNAL_URL: 'https://pinkpill-demo.onrender.com' });
   try {

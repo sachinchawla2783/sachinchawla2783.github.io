@@ -14,6 +14,13 @@ const isTest = NODE_ENV === 'test';
 
 function bool(v, dflt) { return v === undefined || v === '' ? dflt : /^(1|true|yes|on)$/i.test(v); }
 function int(v, dflt) { const n = parseInt(v, 10); return Number.isFinite(n) ? n : dflt; }
+/* Express reads a string as an address list, so a hop count like "1" (as Render sets it) must become a number,
+   otherwise no proxy is trusted, req.secure stays false and the HTTPS redirect loops forever. */
+function trustProxy(v) {
+  if (/^\d+$/.test(v)) return parseInt(v, 10);
+  if (/^(true|false)$/i.test(v)) return /^true$/i.test(v);
+  return v;
+}
 
 const r2AccountId = env.R2_ACCOUNT_ID || '';
 
@@ -37,7 +44,7 @@ const config = {
   },
   migrateOnStart: bool(env.MIGRATE_ON_START, true),
   shutdownTimeoutMs: int(env.SHUTDOWN_TIMEOUT_MS, 10000),
-  trustProxy: env.TRUST_PROXY || (isProd ? '1' : 'loopback'),
+  trustProxy: trustProxy(env.TRUST_PROXY || (isProd ? '1' : 'loopback')),
   cookieSecure: bool(env.COOKIE_SECURE, isProd),
   sessionDays: int(env.SESSION_DAYS, 30),
   requireEmailVerification: bool(env.REQUIRE_EMAIL_VERIFICATION, isProd),
