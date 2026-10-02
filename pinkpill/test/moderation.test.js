@@ -187,6 +187,21 @@ test('Best of the Best: only the owner and global admins add or remove guides; m
   assert.equal((await superAdmin.post('/api/forums/f-best/threads', { title: 'Owner pick', content: 'x' })).status, 201);
 });
 
+test('owner style: special colours and effects are owner-only and validated', async () => {
+  for (const c of [alice, mod, admin]) assert.equal((await c.patch('/api/account/owner-style', { color: 'rainbow', effect: 'flow' })).status, 403);
+  for (const bad of [{ color: 'red', effect: null }, { color: 'rainbow', effect: 'blink' }, { color: 'rainbow', effect: null, css: 'x' }]) {
+    assert.equal((await superAdmin.patch('/api/account/owner-style', bad)).status, 422, JSON.stringify(bad));
+  }
+  assert.equal((await superAdmin.patch('/api/account/owner-style', { color: 'galaxy', effect: 'sparkle' })).status, 200);
+  assert.deepEqual((await guest.get('/api/members/' + superAdmin.user.id)).body.user.special, { color: 'galaxy', effect: 'sparkle' });
+  // A stored value never shows for someone who isn't the owner.
+  await db.query("UPDATE users SET special_color = 'inferno' WHERE id = $1", [alice.user.id]);
+  assert.equal((await guest.get('/api/members/' + alice.user.id)).body.user.special, null);
+  await db.query('UPDATE users SET special_color = NULL WHERE id = $1', [alice.user.id]);
+  assert.equal((await superAdmin.patch('/api/account/owner-style', { color: null, effect: 'flow' })).status, 200);
+  assert.equal((await guest.get('/api/members/' + superAdmin.user.id)).body.user.special, null);
+});
+
 test('forum management: create, nest, members-only, delete rules, audit', async () => {
   const c = await admin.post('/api/admin/categories', { title: 'Events', position: 9 });
   assert.equal(c.status, 201);

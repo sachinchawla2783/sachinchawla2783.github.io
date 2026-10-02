@@ -536,7 +536,7 @@
     const u = me();
     if (!u) return loginRequired();
     tab = tab || 'details';
-    const tabs = [['details', 'Account details'], ['personal', 'Personal details'], ['security', 'Password & security'], ['privacy', 'Privacy'], ['preferences', 'Preferences'], ['signature', 'Signature'], ['following', 'Following'], ['ignoring', 'Ignoring'], ['bookmarks', 'Bookmarks'], ['watched', 'Watched threads'], ['warnings', 'Warnings'], ['vip', '👑 VIP membership'], ['purchases', 'Purchases'], ['data', 'Your data']];
+    const tabs = [['details', 'Account details'], ['personal', 'Personal details'], ['security', 'Password & security'], ['privacy', 'Privacy'], ['preferences', 'Preferences'], ['signature', 'Signature'], ['following', 'Following'], ['ignoring', 'Ignoring'], ['bookmarks', 'Bookmarks'], ['watched', 'Watched threads'], ['warnings', 'Warnings'], ['vip', '👑 VIP membership'], ['purchases', 'Purchases'], ['data', 'Your data']].concat(u.role === 'super_admin' ? [['owner-style', '✨ Owner style']] : []);
     let body = '';
     if (tab === 'details') {
       body = '<form class="block form" data-form="account-details"><div class="block-body"><dl class="pairs"><div><dt>User name</dt><dd>' + esc(u.username) + '</dd></div><div><dt>Joined</dt><dd>' + fullDate(u.joinedAt) + '</dd></div><div><dt>User group</dt><dd>' + esc(PP.ROLE_TITLES[u.role] || u.role) + '</dd></div><div><dt>Email status</dt><dd>' + (u.emailVerified ? 'Verified ✓' : 'Not verified <button type="button" class="btn btn-sm" data-act="resend-verification">Resend link</button>') + '</dd></div></dl>' +
@@ -572,6 +572,18 @@
         '<label class="field"><span>Who can start conversations with you</span>' + opt('allowDms', u.prefs.allowDms) + '</label>' +
         '<label class="field"><span>Who can post on your profile</span>' + opt('allowProfilePosts', u.prefs.allowProfilePosts) + '</label>' +
         '<div class="form-actions"><button class="btn btn-primary">Save</button></div></div></form>';
+    } else if (tab === 'owner-style' && u.role === 'super_admin') {
+      const cur = u.special || {};
+      const NAMES = { rainbow: 'Rainbow', galaxy: 'Galaxy', inferno: 'Inferno', frost: 'Frost', royal: 'Royal gold', toxic: 'Toxic', sakura: 'Sakura', midnight: 'Midnight' };
+      const FX = { flow: 'Flowing colours', pulse: 'Pulsing glow', sparkle: 'Sparkle', neon: 'Neon' };
+      const sample = (c, fx) => '<span class="username username--special sp--' + c + (fx ? ' spfx--' + fx : '') + '">' + esc(u.username) + '</span>';
+      body = '<form class="block form" data-form="owner-style"><h3 class="block-head">✨ Owner style</h3><div class="block-body">' +
+        '<p class="small muted">Special username colours and effects only the owner can use. They replace any VIP colour.</p>' +
+        '<div class="field"><span>Colour</span><div class="owner-swatches">' +
+        '<label class="vip-choice"><input type="radio" name="color" value=""' + (!cur.color ? ' checked' : '') + '> None</label>' +
+        ui.SPECIAL_COLORS.map((c) => '<label class="vip-choice"><input type="radio" name="color" value="' + c + '"' + (cur.color === c ? ' checked' : '') + '> ' + sample(c, 'flow') + ' <span class="small muted">' + NAMES[c] + '</span></label>').join('') + '</div></div>' +
+        '<label class="field"><span>Effect</span><select name="effect"><option value="">None</option>' + ui.SPECIAL_EFFECTS.map((x) => '<option value="' + x + '"' + (cur.effect === x ? ' selected' : '') + '>' + FX[x] + '</option>').join('') + '</select></label>' +
+        '<div class="form-actions"><button class="btn btn-primary">Save style</button> <span class="small muted">Now: ' + ui.username(u) + '</span></div></div></form>';
     } else if (tab === 'preferences') {
       body = '<form class="block form" data-form="account-prefs"><div class="block-body">' +
         '<label class="field"><span>Style</span><select name="theme">' + [['auto', 'Match system'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => '<option value="' + v + '"' + (v === u.prefs.theme ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +

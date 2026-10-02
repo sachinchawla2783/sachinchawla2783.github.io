@@ -561,6 +561,11 @@
       f.reset(); toast('Your password has been changed. Other devices were logged out.'); refresh();
     },
     async 'account-privacy'(f, d) { const r = await api.patch('/account/preferences', { showOnline: !!d.showOnline, allowDms: d.allowDms, allowProfilePosts: d.allowProfilePosts }); PP.session.user = r.user; toast('Your changes have been saved.'); },
+    async 'owner-style'(f, d) {
+      const r = await api.patch('/account/owner-style', { color: d.color || null, effect: d.color && d.effect ? d.effect : null });
+      PP.session.user = r.user; if (PP.users) PP.users[String(r.user.id)] = r.user;
+      toast('Owner style saved.'); refresh();
+    },
     async 'account-prefs'(f, d) {
       const r = await api.patch('/account/preferences', { theme: d.theme, showSignatures: !!d.showSignatures, autoWatch: !!d.autoWatch });
       PP.session.user = r.user;

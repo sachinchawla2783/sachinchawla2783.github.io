@@ -10,7 +10,7 @@ const avatarUrl = (id) => (id ? '/media/' + id : null);
 async function summaries(ids, q = db) {
   ids = [...new Set((ids || []).filter(Boolean).map(String))];
   if (!ids.length) return {};
-  const rows = await q.many(`SELECT u.id, u.username, u.role_id, r.is_staff, u.status, u.created_at, u.last_seen_at,
+  const rows = await q.many(`SELECT u.id, u.username, u.role_id, r.is_staff, u.status, u.created_at, u.last_seen_at, u.special_color, u.special_effect,
       p.custom_title, p.location, p.avatar_id, p.avatar_color, p.signature, coalesce(pr.show_online, true) AS show_online,
       (SELECT count(*)::int FROM posts WHERE author_id = u.id AND deleted_at IS NULL) AS post_count,
       (SELECT count(*)::int FROM reactions rx JOIN posts px ON px.id = rx.post_id WHERE px.author_id = u.id AND px.deleted_at IS NULL AND rx.reaction IN ('like','love','glow','hug')) AS reaction_score,
@@ -49,6 +49,8 @@ function toSummary(r, vipStyle) {
     banned: r.banned,
     // VIP decoration, computed from active entitlements only (null for non-VIP and expired members).
     vip: deleted ? null : vipStyle,
+    // Owner-only colour/effect; ignored for anyone else even if a value were stored.
+    special: !deleted && r.role_id === 'super_admin' && r.special_color ? { color: r.special_color, effect: r.special_effect || null } : null,
     stats: { posts: r.post_count, reactionScore: r.reaction_score, rep: r.rep, points, followers: r.followers },
   };
 }

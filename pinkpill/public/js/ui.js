@@ -22,8 +22,22 @@
     return { cls, style };
   }
   const frameAttr = (u) => (u && u.vip && HEX.test(u.vip.frame || '') ? { cls: ' avatar--frame', style: '--frame:' + u.vip.frame + ';' } : { cls: '', style: '' });
-  /* The owner's black check, shown next to their name everywhere. */
-  const ownerBadge = (u) => (u && u.role === 'super_admin' && !u.deleted ? '<span class="owner-badge" title="Owner" aria-label="Owner">✔</span>' : '');
+  /* Staff badges next to the name: owner black check, global admin glowing gold + tag, moderator glowing purple. */
+  const ownerBadge = (u) => {
+    if (!u || u.deleted) return '';
+    if (u.role === 'super_admin') return '<span class="owner-badge" title="Owner" aria-label="Owner">✔</span>';
+    if (u.role === 'global_admin') return '<span class="staff-badge staff-badge--gadmin" title="Global Admin" aria-label="Global Admin">✔</span><span class="staff-tag">Global Admin</span>';
+    if (u.role === 'moderator') return '<span class="staff-badge staff-badge--mod" title="Moderator" aria-label="Moderator">✔</span>';
+    return '';
+  };
+  const SPECIAL_COLORS = ['rainbow', 'galaxy', 'inferno', 'frost', 'royal', 'toxic', 'sakura', 'midnight'];
+  const SPECIAL_EFFECTS = ['flow', 'pulse', 'sparkle', 'neon'];
+  /* Owner-only colour/effect; overrides VIP styling. Ids are checked against fixed lists before use. */
+  function specialName(u) {
+    const s = u && u.special;
+    if (!s || u.role !== 'super_admin' || !SPECIAL_COLORS.includes(s.color)) return null;
+    return ' username--special sp--' + s.color + (SPECIAL_EFFECTS.includes(s.effect) ? ' spfx--' + s.effect : '');
+  }
   const verifiedBadge = (u) => (u && u.vip && u.vip.badge ? '<span class="vip-verified" title="Lifetime VIP" aria-label="Lifetime VIP">✔</span>' : '');
 
   function avatar(u, size) {
@@ -38,7 +52,8 @@
   function username(u, cls) {
     if (!u || u.deleted) return '<span class="username">Deleted member</span>';
     const role = u.role === 'admin' || u.role === 'global_admin' || u.role === 'super_admin' ? ' username--admin' : u.role === 'moderator' ? ' username--mod' : '';
-    const v = vipName(u);
+    const sp = specialName(u);
+    const v = sp ? { cls: sp, style: '' } : vipName(u);
     return '<a href="#/members/' + u.id + '" class="username' + role + v.cls + (u.banned ? ' username--banned' : '') + ' ' + (cls || '') + '"' + (v.style ? ' style="' + v.style + '"' : '') + ' data-user-tip="' + u.id + '">' + esc(u.username) + '</a>' + ownerBadge(u) + verifiedBadge(u);
   }
 
@@ -52,7 +67,7 @@
   function roleBanner(u) {
     if (!u) return '';
     if (u.role === 'super_admin') return '<div class="role-banner role-banner--owner">Owner</div>';
-    if (u.role === 'global_admin') return '<div class="role-banner role-banner--admin">Global Admin</div>';
+    if (u.role === 'global_admin') return '<div class="role-banner role-banner--gadmin">Global Admin</div>';
     if (u.role === 'admin') return '<div class="role-banner role-banner--admin">Admin</div>';
     if (u.role === 'moderator') return '<div class="role-banner role-banner--mod">Moderator</div>';
     return '';
@@ -239,5 +254,5 @@
     el.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - el.offsetWidth - 8)) + 'px';
   }
 
-  window.PP.ui = { nsfwTag, safeColor, vipName, ownerBadge, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
+  window.PP.ui = { nsfwTag, safeColor, vipName, ownerBadge, SPECIAL_COLORS, SPECIAL_EFFECTS, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
 })();

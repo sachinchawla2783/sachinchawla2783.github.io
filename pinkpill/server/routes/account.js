@@ -152,6 +152,15 @@ router.patch('/preferences', async (req, res) => {
   res.json({ user: await mePayload(req.user) });
 });
 
+/* Owner-only username colour and effect. */
+router.patch('/owner-style', async (req, res) => {
+  if (req.user.role !== 'super_admin') throw forbidden('Only the owner can use special colours.');
+  const { COLORS, EFFECTS } = require('../lib/ownerStyle');
+  const d = parse(z.object({ color: z.enum(COLORS).nullable(), effect: z.enum(EFFECTS).nullable() }).strict(), req.body);
+  await db.query('UPDATE users SET special_color = $2, special_effect = $3 WHERE id = $1', [req.user.id, d.color, d.color ? d.effect : null]);
+  res.json({ user: await mePayload(req.user) });
+});
+
 router.get('/sessions', async (req, res) => {
   const rows = await db.many('SELECT id, created_at, last_used_at, ip::text AS ip, user_agent FROM sessions WHERE user_id = $1 AND expires_at > now() ORDER BY last_used_at DESC', [req.user.id]);
   res.json({ sessions: rows.map((r) => ({ current: r.id === req.sessionId, createdAt: r.created_at, lastUsedAt: r.last_used_at, ip: r.ip, userAgent: r.user_agent })) });

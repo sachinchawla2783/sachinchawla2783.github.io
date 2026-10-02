@@ -78,6 +78,8 @@ body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
+  /* clip (not hidden) so the sticky header keeps working, notably in Safari. */
+  overflow-x: clip;
 }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -97,24 +99,24 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 
 /* ---------- header ---------- */
 .site-header { background: var(--header-bg); color: var(--header-text); position: sticky; top: 0; z-index: 40; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
-.header-inner { max-width: 1280px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; }
-.logo { color: #fff; font-size: 1.6rem; font-weight: 400; letter-spacing: -.5px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.header-inner { max-width: 1280px; margin: 0 auto; padding: 6px 16px; display: flex; align-items: center; gap: 14px; }
+.logo { color: #fff; font-size: 1.35rem; font-weight: 400; letter-spacing: -.5px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .logo b { font-weight: 800; }
 .logo:hover { text-decoration: none; }
-.logo-pill { width: 34px; height: 18px; border-radius: 10px; background: linear-gradient(90deg, #fff 50%, #fbcfe8 50%); box-shadow: 0 0 0 2px rgba(255,255,255,.4); transform: rotate(-25deg); }
+.logo-pill { width: 28px; height: 15px; border-radius: 10px; background: linear-gradient(90deg, #fff 50%, #fbcfe8 50%); box-shadow: 0 0 0 2px rgba(255,255,255,.4); transform: rotate(-25deg); }
 .quick-search { flex: 1; max-width: 360px; margin-left: auto; }
-.quick-search input { width: 100%; border: 0; border-radius: 20px; padding: 7px 14px; background: rgba(255,255,255,.22); color: #fff; font: inherit; }
+.quick-search input { width: 100%; border: 0; border-radius: 20px; padding: 5px 14px; background: rgba(255,255,255,.22); color: #fff; font: inherit; }
 .quick-search input::placeholder { color: rgba(255,255,255,.85); }
 .quick-search input:focus { outline: 2px solid #fff; background: rgba(255,255,255,.3); }
 .userbar { display: flex; align-items: center; gap: 4px; }
-.ub-link { color: #fff; background: none; border: 0; font: inherit; cursor: pointer; padding: 6px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; position: relative; font-size: 1rem; }
+.ub-link { color: #fff; background: none; border: 0; font: inherit; cursor: pointer; padding: 5px 9px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; position: relative; font-size: 1rem; }
 .ub-link:hover { background: rgba(255,255,255,.18); text-decoration: none; }
 .ub-link--primary { background: rgba(255,255,255,.25); font-weight: 600; }
 .ub-link .count, .tab .count, .ub-link .count { background: #fff; color: var(--pink-strong); border-radius: 10px; font-size: 11px; font-weight: 700; padding: 0 6px; line-height: 17px; }
 .ub-link .count { position: absolute; top: 0; right: 0; }
 .site-nav { background: rgba(0,0,0,.18); }
 .nav-inner { max-width: 1280px; margin: 0 auto; padding: 0 16px; display: flex; gap: 2px; overflow-x: auto; }
-.nav-inner a { color: #fff; padding: 9px 14px; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; }
+.nav-inner a { color: #fff; padding: 6px 13px; font-size: .92rem; font-weight: 600; white-space: nowrap; border-bottom: 3px solid transparent; }
 .nav-inner a:hover { text-decoration: none; background: rgba(255,255,255,.12); }
 .nav-inner a.active { border-bottom-color: #fff; background: rgba(255,255,255,.15); }
 .nav-toggle { display: none; background: none; border: 0; color: #fff; font-size: 1.4rem; cursor: pointer; }
@@ -150,7 +152,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-
 .row.wrap { flex-wrap: wrap; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .account-layout { display: flex; gap: 20px; align-items: flex-start; }
-.side-nav { width: 220px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; position: sticky; top: 110px; }
+.side-nav { width: 220px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; position: sticky; top: 92px; }
 .side-nav a, .side-nav button { display: block; padding: 9px 14px; border-left: 3px solid transparent; color: var(--text); width: 100%; text-align: left; font: inherit; background: none; border-top: 0; border-right: 0; border-bottom: 1px solid var(--border); cursor: pointer; }
 .side-nav a:hover, .side-nav button:hover { background: var(--pink-softer); text-decoration: none; }
 .side-nav a.active { border-left-color: var(--pink); background: var(--pink-soft); font-weight: 600; }
@@ -229,6 +231,7 @@ a.block:hover { text-decoration: none; border-color: var(--pink); }
 .mention { font-weight: 600; background: var(--pink-soft); padding: 0 3px; border-radius: 3px; }
 .role-banner { display: inline-block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 2px 10px; border-radius: 4px; color: #fff; margin: 4px 0; }
 .role-banner--admin { background: linear-gradient(90deg, #c026d3, #db2777); }
+.role-banner--gadmin { background: linear-gradient(90deg, #b45309, #f59e0b, #fde68a); color: #422006; box-shadow: 0 0 8px rgba(245, 158, 11, .6); }
 .role-banner--owner { background: #111; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
 .role-banner--mod { background: linear-gradient(90deg, #2563eb, #7c3aed); }
 .badge { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; background: var(--pink-soft); color: var(--pink-strong); }
@@ -554,6 +557,34 @@ section.block > .table { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .vipfx--shimmer { animation: none; } }
 /* Owner: black circle, white check; the light ring keeps it visible on dark themes. */
 .owner-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.05em; height: 1.05em; margin-left: 3px; border-radius: 50%; background: #000; color: #fff; font-size: .7em; font-weight: 800; vertical-align: .1em; box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
+/* Staff badges: glowing purple (moderator) and glowing gold (global admin). */
+.staff-badge { display: inline-flex; align-items: center; justify-content: center; width: 1.05em; height: 1.05em; margin-left: 3px; border-radius: 50%; color: #fff; font-size: .7em; font-weight: 800; vertical-align: .1em; }
+.staff-badge--mod { background: #7c3aed; box-shadow: 0 0 5px 1px rgba(168, 85, 247, .85); animation: glow-mod 2.2s ease-in-out infinite alternate; }
+.staff-badge--gadmin { background: linear-gradient(135deg, #fde68a, #f59e0b 55%, #b45309); color: #422006; box-shadow: 0 0 5px 1px rgba(245, 158, 11, .9); animation: glow-gold 2.2s ease-in-out infinite alternate; }
+@keyframes glow-mod { to { box-shadow: 0 0 10px 3px rgba(168, 85, 247, .95); } }
+@keyframes glow-gold { to { box-shadow: 0 0 10px 3px rgba(251, 191, 36, 1); } }
+.staff-tag { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 4px; font-size: .62rem; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; line-height: 1.6; vertical-align: .15em; background: linear-gradient(90deg, #f59e0b, #fde68a); color: #422006; box-shadow: 0 0 6px rgba(245, 158, 11, .55); white-space: nowrap; }
+.online-names .staff-tag { display: none; }
+
+/* Owner-only special username colours and effects. */
+.username--special { background-image: var(--sp); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent; font-weight: 700; }
+.sp--rainbow { --sp: linear-gradient(90deg, #ff004c, #ff8a00, #ffe600, #2bd900, #00c8ff, #7a00ff, #ff004c); --glow: #ff4fa3; }
+.sp--galaxy { --sp: linear-gradient(90deg, #7c3aed, #3b82f6, #ec4899, #7c3aed); --glow: #8b5cf6; }
+.sp--inferno { --sp: linear-gradient(90deg, #dc2626, #f97316, #facc15, #dc2626); --glow: #f97316; }
+.sp--frost { --sp: linear-gradient(90deg, #0ea5e9, #bae6fd, #818cf8, #0ea5e9); --glow: #38bdf8; }
+.sp--royal { --sp: linear-gradient(90deg, #b45309, #fde68a, #f59e0b, #b45309); --glow: #f59e0b; }
+.sp--toxic { --sp: linear-gradient(90deg, #16a34a, #bef264, #22c55e, #16a34a); --glow: #84cc16; }
+.sp--sakura { --sp: linear-gradient(90deg, #ec4899, #fbcfe8, #d946ef, #ec4899); --glow: #f472b6; }
+.sp--midnight { --sp: linear-gradient(90deg, #4338ca, #c7d2fe, #7c3aed, #4338ca); --glow: #6366f1; }
+.spfx--flow { animation: sp-flow 3s linear infinite; }
+@keyframes sp-flow { from { background-position: 0% 0; } to { background-position: 200% 0; } }
+.spfx--pulse { animation: sp-pulse 1.8s ease-in-out infinite alternate; }
+@keyframes sp-pulse { from { filter: drop-shadow(0 0 1px var(--glow)); } to { filter: drop-shadow(0 0 7px var(--glow)); } }
+.spfx--neon { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px var(--glow)); }
+.spfx--sparkle::after { content: " ✨"; font-size: .8em; -webkit-text-fill-color: initial; color: initial; display: inline-block; animation: sp-twinkle 1.4s ease-in-out infinite alternate; }
+@keyframes sp-twinkle { from { opacity: .35; transform: scale(.85); } to { opacity: 1; transform: scale(1.1); } }
+.owner-swatches { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+@media (prefers-reduced-motion: reduce) { .spfx--flow, .spfx--pulse, .spfx--sparkle::after, .staff-badge--mod, .staff-badge--gadmin { animation: none; } }
 .vip-verified { display: inline-flex; align-items: center; justify-content: center; width: 1.05em; height: 1.05em; margin-left: 3px; border-radius: 50%; background: var(--vip-grad); color: #fff; font-size: .7em; font-weight: 800; vertical-align: .1em; }
 .avatar.avatar--frame { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--frame); }
 .avatar-l.avatar--frame, .avatar-xl.avatar--frame { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--frame); }
