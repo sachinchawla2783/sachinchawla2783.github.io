@@ -555,9 +555,18 @@ section.block > .table { margin: 0; }
 .react-picker .react-vip { border-left: 1px solid var(--border); }
 
 /* pricing */
-.vip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; align-items: start; }
+.vip-section { margin-bottom: 22px; }
+.vip-section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 10px; }
+.vip-section-head h2 { margin: 0; font-size: 1.3rem; }
+/* Flex so an odd card out is centered at the same width instead of stretched or left alone. */
+.vip-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
 .vip-grid .block { margin-bottom: 0; }
-.vip-card { display: flex; flex-direction: column; border-top: 4px solid var(--pink); }
+.vip-card { display: flex; flex-direction: column; flex: 1 1 280px; max-width: 400px; border-top: 4px solid var(--pink); position: relative; }
+.vip-card > .block-body { display: flex; flex-direction: column; flex: 1; }
+.vip-card .vip-actions { margin-top: auto; padding-top: 12px; }
+.vip-card--featured { border: 2px solid #f59e0b; border-top-width: 4px; box-shadow: 0 6px 24px rgba(245, 158, 11, .25); }
+.vip-featured-tag { background: var(--vip-grad); color: #fff; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; padding: 4px 12px; text-align: center; }
+.vip-methods-line { border-top: 0; justify-content: flex-start; gap: 6px 12px; margin-bottom: 8px; }
 .vip-card--lifetime { border-top-color: #f59e0b; }
 .vip-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px 0; }
 .vip-card-head h2 { margin: 0; font-size: 1.15rem; }
@@ -574,6 +583,7 @@ section.block > .table { margin: 0; }
 .vip-method { font-size: .75rem; padding: 1px 8px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); white-space: nowrap; }
 .vip-method--off { opacity: .5; text-decoration: line-through; }
 .vip-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.vip-section .vip-grid { padding-top: 6px; }
 .vip-actions .btn { flex: 1 1 auto; justify-content: center; }
 .vip-actions .btn[aria-disabled] { cursor: default; opacity: .8; }
 .vip-swatch { display: inline-block; flex-shrink: 0; width: 16px; height: 16px; border-radius: 50%; margin: 0 2px; vertical-align: middle; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border-strong); }
@@ -602,7 +612,7 @@ section.block > .table { margin: 0; }
 .vip-counts { margin: 0 0 12px; }
 .vip-admin-product .row > .field { flex: 1 1 160px; }
 @media (max-width: 760px) {
-  .vip-grid { grid-template-columns: 1fr; }
+  .vip-card { max-width: none; }
   .vip-price { font-size: 1.6rem; }
   .vip-choices--methods .vip-choice, .vip-choice { width: 100%; }
 }

@@ -58,14 +58,15 @@
     return '<div class="vip-methods">' + methods.map((m) => '<span class="vip-method' + (m.available ? '' : ' vip-method--off') + '" title="' + (m.available ? 'Available' : 'Not available yet') + '">' + (METHOD_ICON[m.id] || '') + ' ' + esc(m.label) + '</span>').join('') + '</div>';
   }
 
-  function card(p, d) {
+  function card(p, d, featured) {
     const rel = relation(p, d.status, d.products);
     const colors = d.colors.filter((c) => p.allowedUsernameColors.includes(c.id));
     const frames = d.frames.filter((f) => p.availableAvatarFrames.includes(f.id));
     const buy = rel === 'owned' ? '<span class="btn" aria-disabled="true">✓ You own this</span>'
       : rel === 'included' ? '<span class="btn" aria-disabled="true">✓ Included in your membership</span>'
         : '<a class="btn btn-primary" href="#/vip/checkout/' + esc(p.slug) + '">' + (rel === 'upgrade' ? '⬆ Upgrade' : rel === 'renew' ? '↻ Extend' : 'Purchase') + '</a>';
-    return '<article class="block vip-card' + (p.lifetime ? ' vip-card--lifetime' : '') + '" data-product="' + esc(p.slug) + '">' +
+    return '<article class="block vip-card' + (p.lifetime ? ' vip-card--lifetime' : '') + (featured ? ' vip-card--featured' : '') + '" data-product="' + esc(p.slug) + '">' +
+      (featured ? '<div class="vip-featured-tag">★ Ultimate package</div>' : '') +
       '<header class="vip-card-head"><h2>👑 ' + esc(p.name) + '</h2>' + (p.lifetime ? '<span class="vip-ribbon">Lifetime</span>' : '<span class="vip-ribbon vip-ribbon--month">Monthly</span>') + '</header>' +
       '<div class="block-body">' + priceHtml(p) +
       (p.description ? '<p class="small muted">' + esc(p.description) + '</p>' : '') +
@@ -73,7 +74,6 @@
       '<ul class="vip-benefits">' + p.benefits.map((b) => '<li>' + esc(b) + '</li>').join('') + '</ul>' +
       (colors.length ? '<div class="vip-row"><span class="small muted">Username colors</span><span>' + colors.map(swatch).join('') + (p.exclusiveColors ? ' <span class="small muted">+ lifetime exclusives</span>' : '') + '</span></div>' : '') +
       (frames.length ? '<div class="vip-row"><span class="small muted">Avatar frames' + (p.requiresAvatarFrame ? ' (choose one)' : '') + '</span><span>' + frames.map((f) => swatch({ hex1: f.hex, name: f.name })).join('') + '</span></div>' : '') +
-      '<div class="vip-row vip-row--methods"><span class="small muted">Payment methods</span>' + methodsHtml(d.paymentMethods) + '</div>' +
       '<div class="vip-actions">' + buy + ' <a class="btn" href="#/vip/gift/' + esc(p.slug) + '">🎁 Gift</a></div>' +
       '</div></article>';
   }
@@ -95,6 +95,15 @@
       '<div class="form-actions"><a class="btn" href="#/account/vip">Manage membership</a> <a class="btn" href="#/account/purchases">Purchase history</a></div></div></section>';
   }
 
+  /* Monthly and lifetime packages in their own rows; the highest tier is highlighted. */
+  function vipSections(d) {
+    const top = d.products.reduce((a, p) => (!a || p.tierRank > a.tierRank ? p : a), null);
+    const group = (title, sub, list) => (list.length ? '<section class="vip-section"><div class="vip-section-head"><h2>' + title + '</h2><span class="small muted">' + sub + '</span></div>' +
+      '<div class="vip-grid">' + list.map((p) => card(p, d, top && p.slug === top.slug)).join('') + '</div></section>' : '');
+    return group('Monthly', 'One-time payment for a month. No auto-renewal.', d.products.filter((p) => !p.lifetime)) +
+      group('Lifetime', 'Pay once, keep it forever.', d.products.filter((p) => p.lifetime));
+  }
+
   /* ---------- /vip ---------- */
 
   async function page() {
@@ -103,7 +112,8 @@
     const html = '<div class="page-head"><h1>👑 PinkPill VIP</h1><p class="muted">Support PinkPill and unlock extra features. Every package is enforced by the server the moment your payment is confirmed.</p></div>' +
       statusPanel(d) +
       (d.paymentMethods.some((m) => m.available) ? '' : '<div class="notice">Payments aren\'t set up on this site yet, so packages can\'t be purchased right now.</div>') +
-      '<div class="vip-grid">' + d.products.map((p) => card(p, d)).join('') + '</div>' +
+      vipSections(d) +
+      '<div class="vip-row vip-row--methods vip-methods-line"><span class="small muted">Payment methods</span>' + methodsHtml(d.paymentMethods) + '</div>' +
       '<p class="small muted">Monthly packages are one-time payments for one month (or 12 months where annual pricing is offered). They don\'t renew automatically. Wallet balance: <b>' + money(d.walletCents) + '</b>.</p>';
     return { title: 'VIP', html };
   }
