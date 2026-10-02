@@ -272,6 +272,7 @@
       if (s.verifiedBadge) perks.push('Lifetime verified badge ' + ui.verifiedBadge({ vip: { badge: true } }));
       if (s.customColor) perks.push('Custom username color');
       if (s.customEffects) perks.push('Custom username text effects');
+      if (s.customFrame) perks.push('Custom avatar frame color');
       h += '<section class="block"><h3 class="block-head">Current membership</h3><div class="block-body"><dl class="pairs">' +
         '<div><dt>Package</dt><dd>👑 ' + esc(s.top.name) + (s.products.length > 1 ? ' <span class="small muted">(+ ' + (s.products.length - 1) + ' more)</span>' : '') + '</dd></div>' +
         '<div><dt>Status</dt><dd>' + statusBadge('active') + '</dd></div>' +
@@ -282,6 +283,7 @@
       h += '<form class="block form" data-vip-form="style"><h3 class="block-head">VIP style</h3><div class="block-body">' +
         (s.colors.length ? '<label class="field"><span>Username color</span><select name="usernameColor"><option value="">Default</option>' + s.colors.map((id) => '<option value="' + esc(id) + '"' + (s.prefs.usernameColor === id ? ' selected' : '') + '>' + esc((colorById[id] || { name: id }).name) + (colorById[id] && colorById[id].lifetimeExclusive ? ' (lifetime exclusive)' : '') + '</option>').join('') + '</select></label>' : '') +
         (s.frames.length ? '<label class="field"><span>Avatar frame</span><select name="avatarFrame"><option value="">None</option>' + s.frames.map((id) => '<option value="' + esc(id) + '"' + (s.prefs.avatarFrame === id ? ' selected' : '') + '>' + esc((frameById[id] || { name: id }).name) + '</option>').join('') + '</select></label>' : '') +
+        (s.customFrame ? '<div class="field"><span>Custom avatar frame color</span><div class="row"><label class="check"><input type="checkbox" name="useCustomFrame"' + (s.prefs.customFrame ? ' checked' : '') + '> Use a custom frame color (overrides the frame above)</label><input type="color" name="customFrame" value="' + esc(HEX.test(s.prefs.customFrame || '') ? s.prefs.customFrame : '#ec4899') + '"></div></div>' : '') +
         (s.customColor ? '<div class="field"><span>Custom username color</span><div class="row"><label class="check"><input type="checkbox" name="useCustom"' + (s.prefs.customColor ? ' checked' : '') + '> Use a custom color (overrides the color above)</label><input type="color" name="customColor" value="' + esc(HEX.test(s.prefs.customColor || '') ? s.prefs.customColor : '#ec4899') + '"></div></div>' : '') +
         (s.customEffects ? '<label class="field"><span>Username text effect</span><select name="customEffect"><option value="">None</option>' + cat.effects.map((e) => '<option value="' + esc(e.id) + '"' + (s.prefs.customEffect === e.id ? ' selected' : '') + '>' + esc(e.name) + '</option>').join('') + '</select></label>' : '') +
         '<div class="form-actions"><button class="btn btn-primary">Save style</button> <span class="small muted">Current: ' + colorText(st.color, me().username) + (st.frame ? ' ' + swatch({ hex1: st.frame }) : '') + '</span></div></div></form>';
@@ -373,7 +375,7 @@
         '<label class="field"><span>Post edit window (minutes)</span><input name="postEditWindowMinutes" type="number" min="1" value="' + (p.postEditWindowMinutes || '') + '"></label></div>' +
         '<div class="field"><span>Username colors</span><div class="perm-grid">' + d.colors.map((c) => '<label class="check"><input type="checkbox" name="color" value="' + esc(c.id) + '"' + (p.allowedUsernameColors.includes(c.id) ? ' checked' : '') + '> ' + swatch(c) + ' ' + esc(c.name) + (c.lifetimeExclusive ? ' <span class="small muted">(exclusive)</span>' : '') + '</label>').join('') + '</div></div>' +
         '<div class="field"><span>Avatar frames</span><div class="perm-grid">' + d.frames.map((f) => '<label class="check"><input type="checkbox" name="frame" value="' + esc(f.id) + '"' + (p.availableAvatarFrames.includes(f.id) ? ' checked' : '') + '> ' + swatch({ hex1: f.hex }) + ' ' + esc(f.name) + '</label>').join('') + '</div></div>' +
-        '<div class="field"><span>Benefits</span><div class="perm-grid">' + [['active', 'Package on sale'], ['requiresAvatarFrame', 'Frame choice required'], ['exclusiveColors', 'Lifetime-exclusive colors'], ['customUsernameColor', 'Custom username color'], ['customUsernameEffects', 'Username text effects'], ['customReactions', 'Custom reactions'], ['noAds', 'No ads'], ['vipForumAccess', 'VIP forum access'], ['ratingsThreadDeletion', 'Delete own Ratings threads'], ...(p.lifetime ? [['verifiedBadge', 'Verified badge']] : [])].map(([k, l]) => '<label class="check"><input type="checkbox" name="flag_' + k + '"' + (p[k] ? ' checked' : '') + '> ' + l + '</label>').join('') + '</div></div>' +
+        '<div class="field"><span>Benefits</span><div class="perm-grid">' + [['active', 'Package on sale'], ['requiresAvatarFrame', 'Frame choice required'], ['exclusiveColors', 'Lifetime-exclusive colors'], ['customUsernameColor', 'Custom username color'], ['customUsernameEffects', 'Username text effects'], ['customAvatarFrame', 'Custom avatar frame color'], ['customReactions', 'Custom reactions'], ['noAds', 'No ads'], ['vipForumAccess', 'VIP forum access'], ['ratingsThreadDeletion', 'Delete own Ratings threads'], ...(p.lifetime ? [['verifiedBadge', 'Verified badge']] : [])].map(([k, l]) => '<label class="check"><input type="checkbox" name="flag_' + k + '"' + (p[k] ? ' checked' : '') + '> ' + l + '</label>').join('') + '</div></div>' +
         '<label class="field"><span>Benefits shown on the VIP page (one per line)</span><textarea name="benefits" rows="6">' + esc(p.benefits.join('\n')) + '</textarea></label>' +
         '<label class="field"><span>Highlighted notes (one per line)</span><textarea name="notes" rows="2">' + esc(p.notes.join('\n')) + '</textarea></label>' +
         '<div class="form-actions"><button class="btn btn-primary">Save ' + esc(p.name) + '</button></div></div></form>').join('');
@@ -441,6 +443,7 @@
       if (f.querySelector('[name=avatarFrame]')) body.avatarFrame = fd.get('avatarFrame') || null;
       if (f.querySelector('[name=customColor]')) body.customColor = fd.get('useCustom') ? String(fd.get('customColor')) : null;
       if (f.querySelector('[name=customEffect]')) body.customEffect = fd.get('customEffect') || null;
+      if (f.querySelector('[name=customFrame]')) body.customFrame = fd.get('useCustomFrame') ? String(fd.get('customFrame')) : null;
       await api.patch('/vip/style', body);
       await api.loadSession();
       toast('Your VIP style has been saved.'); PP.app.refresh();
@@ -485,7 +488,7 @@
         benefits: lines('benefits'), notes: lines('notes'),
       };
       if (f.querySelector('[name=annualPrice]')) body.annualPriceCents = toCents(fd.get('annualPrice'));
-      ['active', 'requiresAvatarFrame', 'exclusiveColors', 'customUsernameColor', 'customUsernameEffects', 'customReactions', 'noAds', 'vipForumAccess', 'ratingsThreadDeletion', 'verifiedBadge']
+      ['active', 'requiresAvatarFrame', 'exclusiveColors', 'customUsernameColor', 'customUsernameEffects', 'customAvatarFrame', 'customReactions', 'noAds', 'vipForumAccess', 'ratingsThreadDeletion', 'verifiedBadge']
         .forEach((k) => { if (f.querySelector('[name=flag_' + k + ']')) body[k] = !!fd.get('flag_' + k); });
       await api.patch('/admin/vip/products/' + f.dataset.slug, body); toast('Package saved.'); PP.app.refresh();
     },

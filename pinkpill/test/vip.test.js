@@ -392,6 +392,22 @@ test('custom username color and effects: validated hex and predefined effect ids
   assert.equal(s.color.hex1, '#00ff00');
 });
 
+test('custom avatar frame color: top tier only, validated hex, overrides the preset frame', async () => {
+  // carol owns Lifetime VIP+ Custom Color (previous test); dave has no VIP.
+  assert.equal((await carol.patch('/api/vip/style', { customFrame: '#12AB34' })).status, 200);
+  let s = (await bob.get('/api/members/' + carol.user.id)).body.user.vip;
+  assert.equal(s.frame, '#12ab34');
+  for (const bad of ['red', '#fff', '#12345g', 'url(x)', '#000000;x']) assert.equal((await carol.patch('/api/vip/style', { customFrame: bad })).status, 422, bad);
+  assert.equal((await carol.patch('/api/vip/style', { customFrame: null, avatarFrame: 'green' })).status, 200);
+  s = (await bob.get('/api/members/' + carol.user.id)).body.user.vip;
+  assert.equal(s.frame, '#16a34a', 'back to the preset frame');
+  // VIP+ (not the custom package) doesn't include it.
+  await grantWallet(dave, 'vip-plus', { avatarFrame: 'red' });
+  assert.equal((await dave.patch('/api/vip/style', { customFrame: '#123456' })).status, 422);
+  await clearVip(dave);
+  assert.equal((await dave.patch('/api/vip/style', { customFrame: '#123456' })).status, 403);
+});
+
 test('members without the entitlement cannot use VIP styling, even with forged preferences', async () => {
   assert.equal((await dave.patch('/api/vip/style', { usernameColor: 'red' })).status, 403);
   await db.query("INSERT INTO user_vip_prefs (user_id, username_color, avatar_frame, custom_color) VALUES ($1, 'cosmic', 'red', '#ff0000') ON CONFLICT (user_id) DO UPDATE SET username_color = 'cosmic', avatar_frame = 'red', custom_color = '#ff0000'", [dave.user.id]);

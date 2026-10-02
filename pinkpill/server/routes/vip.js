@@ -120,6 +120,7 @@ router.get('/vip/me', async (req, res) => {
 router.patch('/vip/style', limits.write, async (req, res) => {
   const d = parse(z.object({
     usernameColor: cosmeticId.nullable(), avatarFrame: cosmeticId.nullable(), customColor: z.string().max(7).nullable(), customEffect: cosmeticId.nullable(),
+    customFrame: z.string().max(7).nullable(),
   }).partial().strict(), req.body);
   const ent = await vip.entitlementsOf(req.user.id);
   const cols = vip.validateStyle(ent, d, await vip.catalog());

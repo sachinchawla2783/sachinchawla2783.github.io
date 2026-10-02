@@ -207,7 +207,7 @@ const productPatch = z.object({
   postEditWindowMinutes: z.number().int().min(1).max(525600).nullable(),
   allowedUsernameColors: z.array(cosmeticId).max(50), exclusiveColors: z.boolean(),
   availableAvatarFrames: z.array(cosmeticId).max(50), requiresAvatarFrame: z.boolean(),
-  customUsernameColor: z.boolean(), customUsernameEffects: z.boolean(), customReactions: z.boolean(), verifiedBadge: z.boolean(),
+  customUsernameColor: z.boolean(), customUsernameEffects: z.boolean(), customAvatarFrame: z.boolean(), customReactions: z.boolean(), verifiedBadge: z.boolean(),
   noAds: z.boolean(), vipForumAccess: z.boolean(), ratingsThreadDeletion: z.boolean(),
   supersedes: z.array(z.string().regex(/^[a-z0-9-]{2,40}$/)).max(20),
   benefits: z.array(z.string().trim().min(1).max(200)).max(30), notes: z.array(z.string().trim().min(1).max(200)).max(10),
@@ -217,7 +217,7 @@ const PRODUCT_COLS = {
   conversationLimit: 'conversation_limit', usernameChangeCooldownDays: 'username_change_cooldown_days', vanityUrlCooldownDays: 'vanity_url_cooldown_days',
   postEditWindowMinutes: 'post_edit_window_minutes', allowedUsernameColors: 'allowed_username_colors', exclusiveColors: 'exclusive_colors',
   availableAvatarFrames: 'available_avatar_frames', requiresAvatarFrame: 'requires_avatar_frame', customUsernameColor: 'custom_username_color',
-  customUsernameEffects: 'custom_username_effects', customReactions: 'custom_reactions', verifiedBadge: 'verified_badge', noAds: 'no_ads',
+  customUsernameEffects: 'custom_username_effects', customAvatarFrame: 'custom_avatar_frame', customReactions: 'custom_reactions', verifiedBadge: 'verified_badge', noAds: 'no_ads',
   vipForumAccess: 'vip_forum_access', ratingsThreadDeletion: 'ratings_thread_deletion', supersedes: 'supersedes', benefits: 'benefits', notes: 'notes',
 };
 

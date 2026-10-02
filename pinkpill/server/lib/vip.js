@@ -26,7 +26,7 @@ const productJson = (p) => ({
   vanityUrlCooldownDays: p.vanity_url_cooldown_days, postEditWindowMinutes: p.post_edit_window_minutes,
   allowedUsernameColors: p.allowed_username_colors, exclusiveColors: p.exclusive_colors,
   availableAvatarFrames: p.available_avatar_frames, requiresAvatarFrame: p.requires_avatar_frame,
-  customUsernameColor: p.custom_username_color, customUsernameEffects: p.custom_username_effects,
+  customUsernameColor: p.custom_username_color, customUsernameEffects: p.custom_username_effects, customAvatarFrame: p.custom_avatar_frame,
   customReactions: p.custom_reactions, verifiedBadge: p.verified_badge, noAds: p.no_ads,
   vipForumAccess: p.vip_forum_access, ratingsThreadDeletion: p.ratings_thread_deletion,
   supersedes: p.supersedes, benefits: p.benefits, notes: p.notes,
@@ -56,7 +56,7 @@ function invalidate() { cache = null; }
 const NONE = Object.freeze({
   active: false, products: [], top: null, lifetime: false, expiresAt: null,
   noAds: false, vipForum: false, ratingsDelete: false, customReactions: false, verifiedBadge: false,
-  customColor: false, customEffects: false, exclusiveColors: false,
+  customColor: false, customEffects: false, customFrame: false, exclusiveColors: false,
   conversationLimit: null, usernameCooldownDays: null, vanityCooldownDays: null, editWindowMinutes: null,
   colors: [], frames: [],
 });
@@ -91,6 +91,7 @@ function combine(rows, cat) {
     verifiedBadge: list.some((x) => x.p.verified_badge && x.r.lifetime),
     customColor: any('custom_username_color'),
     customEffects: any('custom_username_effects'),
+    customFrame: any('custom_avatar_frame'),
     exclusiveColors,
     conversationLimit: maxOf(ps.map((p) => p.conversation_limit)),
     usernameCooldownDays: minOf(ps.map((p) => p.username_change_cooldown_days)),
@@ -141,7 +142,8 @@ function styleFor(ent, pref, cat) {
     const c = cat.colorById[pref.username_color];
     color = { id: c.id, hex1: c.hex1, hex2: c.hex2 };
   }
-  const frame = pref.avatar_frame && ent.frames.includes(pref.avatar_frame) ? cat.frameById[pref.avatar_frame].hex : null;
+  let frame = pref.avatar_frame && ent.frames.includes(pref.avatar_frame) ? cat.frameById[pref.avatar_frame].hex : null;
+  if (ent.customFrame && pref.custom_frame) frame = pref.custom_frame;
   const fx = pref.custom_effect && ent.customEffects && cat.effectById[pref.custom_effect] && cat.effectById[pref.custom_effect].active ? pref.custom_effect : null;
   return { label: ent.top.name, lifetime: ent.lifetime, badge: ent.verifiedBadge, color, frame, effect: fx };
 }
@@ -153,7 +155,7 @@ async function selfView(userId, q = db) {
   const cat = await catalog(q);
   return {
     ...ent,
-    prefs: { usernameColor: pref.username_color || null, avatarFrame: pref.avatar_frame || null, customColor: pref.custom_color || null, customEffect: pref.custom_effect || null },
+    prefs: { usernameColor: pref.username_color || null, avatarFrame: pref.avatar_frame || null, customColor: pref.custom_color || null, customEffect: pref.custom_effect || null, customFrame: pref.custom_frame || null },
     style: ent.active ? styleFor(ent, pref, cat) : null,
   };
 }
@@ -221,6 +223,10 @@ function validateStyle(ent, d, cat) {
     if (d.customColor !== null && !ent.customColor) throw invalid('Your membership does not include a custom username color.', { customColor: 'Not included' });
     out.custom_color = d.customColor === null ? null : normalizeHex(d.customColor);
   }
+  if ('customFrame' in d) {
+    if (d.customFrame !== null && !ent.customFrame) throw invalid('Your membership does not include a custom avatar frame color.', { customFrame: 'Not included' });
+    out.custom_frame = d.customFrame === null ? null : normalizeHex(d.customFrame);
+  }
   if ('customEffect' in d) {
     const e = d.customEffect && cat.effectById[d.customEffect];
     if (d.customEffect !== null && (!ent.customEffects || !e || !e.active)) throw invalid('Your membership does not include that username effect.', { customEffect: 'Not included' });
@@ -230,7 +236,7 @@ function validateStyle(ent, d, cat) {
 }
 
 async function savePrefs(q, userId, cols) {
-  const keys = Object.keys(cols).filter((k) => ['username_color', 'avatar_frame', 'custom_color', 'custom_effect'].includes(k));
+  const keys = Object.keys(cols).filter((k) => ['username_color', 'avatar_frame', 'custom_color', 'custom_effect', 'custom_frame'].includes(k));
   if (!keys.length) return;
   await q.query('INSERT INTO user_vip_prefs (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
   await q.query(`UPDATE user_vip_prefs SET ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')}, updated_at = now() WHERE user_id = $1`, [userId, ...keys.map((k) => cols[k])]);
