@@ -26,9 +26,11 @@
   function widgetOnline(w) {
     const online = w.online.map((o) => U(o.userId)).filter(Boolean);
     const staff = online.filter((u) => u.isStaff);
+    const total = Math.max(w.onlineTotal || 0, online.length);
+    const more = total - online.length;
     return '<section class="block"><h3 class="block-head"><a href="#/online">Members online</a></h3><div class="block-body">' +
-      (online.length ? '<div class="inline-list">' + online.map((u) => username(u)).join(', ') + '</div>' : '<p class="muted">No members online right now.</p>') +
-      '<p class="small muted">Total: ' + online.length + ' member' + (online.length === 1 ? '' : 's') + ' online (last 15 minutes)</p></div></section>' +
+      (online.length ? '<div class="online-names">' + online.map((u) => username(u)).join(', ') + (more > 0 ? ' <a href="#/online" class="muted">and ' + num(more) + ' more…</a>' : '') + '</div>' : '<p class="muted">No members online right now.</p>') +
+      '<p class="small muted">Total: ' + num(total) + ' member' + (total === 1 ? '' : 's') + ' online (last 15 minutes)</p></div></section>' +
       (staff.length ? '<section class="block"><h3 class="block-head">Staff online</h3><div class="block-body">' + staff.map((u) => '<div class="mini-user">' + avatar(u, 's') + '<div>' + username(u) + '<div class="small muted">' + userTitle(u) + '</div></div></div>').join('') + '</div></section>' : '');
   }
 
@@ -51,8 +53,9 @@
       w.profilePosts.map((pp) => '<div class="mini-post">' + avatar(U(pp.authorId), 's') + '<div><div class="small">' + username(U(pp.authorId)) + (pp.authorId !== pp.profileUserId ? ' › ' + username(U(pp.profileUserId)) : '') + '</div><div class="small">' + esc(snippet(pp.content, 90)) + '</div><div class="small muted">' + time(pp.at) + '</div></div></div>').join('') + '</div></section>';
   }
 
-  async function defaultSidebar() { const w = await widgets(); return widgetOnline(w) + widgetLatestPosts(w) + widgetProfilePosts(w) + widgetStats(w); }
-  async function smallSidebar() { const w = await widgets(); return widgetOnline(w) + widgetLatestPosts(w, 5); }
+  // Members online goes last: with many members online it's the longest widget.
+  async function defaultSidebar() { const w = await widgets(); return widgetLatestPosts(w) + widgetProfilePosts(w) + widgetStats(w) + widgetOnline(w); }
+  async function smallSidebar() { const w = await widgets(); return widgetLatestPosts(w, 5) + widgetOnline(w); }
 
   /* ---------- forum index ---------- */
 

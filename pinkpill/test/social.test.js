@@ -190,6 +190,9 @@ test('widgets, members lists, online, tags', async () => {
   const w = await guest.get('/api/widgets/sidebar');
   assert.equal(w.status, 200);
   assert.ok(w.body.stats.members >= 4);
+  assert.equal(typeof w.body.onlineTotal, 'number');
+  assert.ok(w.body.onlineTotal >= w.body.online.length, 'total counts everyone, not just the names shown');
+  assert.ok(w.body.online.length <= 50);
   const notable = await guest.get('/api/members?tab=notable');
   assert.ok(notable.body.mostMessages.length >= 1);
   const staff = await guest.get('/api/members?tab=staff');

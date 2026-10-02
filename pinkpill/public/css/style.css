@@ -351,6 +351,9 @@ textarea { width: 100%; resize: vertical; min-height: 60px; }
 .mini-post:last-child, .mini-user:last-child { border-bottom: 0; }
 .mini-title { color: var(--text); font-weight: 500; display: block; }
 .inline-list { line-height: 1.8; }
+/* Compact so hundreds of online members stay readable. */
+.online-names { font-size: .78rem; line-height: 1.6; }
+.online-names .vip-verified, .online-names .owner-badge { font-size: .65em; }
 .member-list { display: flex; flex-direction: column; }
 .member-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .member-row:last-child { border-bottom: 0; }

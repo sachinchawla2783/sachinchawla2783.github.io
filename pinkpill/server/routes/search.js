@@ -118,11 +118,15 @@ router.get('/widgets/sidebar', async (req, res) => {
       (SELECT count(*)::int FROM posts p JOIN threads t ON t.id = p.thread_id WHERE p.deleted_at IS NULL AND t.deleted_at IS NULL AND t.forum_id = ANY($1)) AS messages,
       (SELECT count(*)::int FROM users WHERE status <> 'deleted') AS members,
       (SELECT id FROM users WHERE status <> 'deleted' ORDER BY created_at DESC LIMIT 1) AS newest`, [visible]);
+  // The sidebar shows at most 50 names; the total is counted separately so it stays right with 1000+ online.
+  const shown = online.online.slice(0, 50);
+  const onlineTotal = (await db.one(`SELECT count(*)::int AS n FROM users u JOIN user_preferences p ON p.user_id = u.id
+    WHERE u.status <> 'deleted' AND p.show_online AND u.last_seen_at > now() - interval '15 minutes'`)).n;
   res.json({
-    online: online.online.slice(0, 50), latest,
+    online: shown, onlineTotal, latest,
     profilePosts: pp.map((p) => ({ id: String(p.id), profileUserId: p.profile_user_id, authorId: p.author_id, content: p.content.slice(0, 200), at: p.created_at })),
     stats,
-    users: await summaries([...online.online.map((o) => o.userId), ...latest.map((t) => t.lastPost && t.lastPost.userId), ...pp.flatMap((p) => [p.author_id, p.profile_user_id]), stats.newest]),
+    users: await summaries([...shown.map((o) => o.userId), ...latest.map((t) => t.lastPost && t.lastPost.userId), ...pp.flatMap((p) => [p.author_id, p.profile_user_id]), stats.newest]),
   });
 });
 
