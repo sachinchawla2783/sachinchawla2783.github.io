@@ -41,7 +41,15 @@ function assertCan(user, perm) { if (!can(user, perm)) throw denyReason(user, pe
 const requireUser = (req, res, next) => (req.user ? next() : next(unauthorized()));
 const requirePermission = (perm) => (req, res, next) => { try { assertCan(req.user, perm); next(); } catch (e) { next(e); } };
 
+/* Staff can't change or remove content by a member of equal or higher rank, so nobody can
+   override the owner (the highest rank). Own content is always allowed. */
+async function assertOutranksAuthor(actor, authorId) {
+  if (!authorId || String(authorId) === String(actor.id)) return;
+  const r = await db.one('SELECT r.rank FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = $1', [authorId]);
+  if (r && r.rank >= actor.rank) throw forbidden('You can\'t edit or remove content by a member of equal or higher rank.');
+}
+
 /* Staff may only act on members of strictly lower rank. */
 function outranks(actor, targetRoleRank) { return !!actor && actor.rank > targetRoleRank; }
 
-module.exports = { roles, invalidateRoles, can, assertCan, requireUser, requirePermission, outranks };
+module.exports = { roles, invalidateRoles, can, assertCan, requireUser, requirePermission, outranks, assertOutranksAuthor };

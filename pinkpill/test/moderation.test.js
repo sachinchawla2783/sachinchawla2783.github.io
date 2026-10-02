@@ -202,6 +202,50 @@ test('owner style: special colours and effects are owner-only and validated', as
   assert.equal((await guest.get('/api/members/' + superAdmin.user.id)).body.user.special, null);
 });
 
+test('special styles: only the owner grants them; granted members can use the full set; revoke clears it', async () => {
+  for (const c of [mod, admin]) assert.equal((await c.put('/api/admin/users/' + bob.user.id + '/special-style', { granted: true })).status, 403);
+  assert.equal((await bob.patch('/api/account/owner-style', { color: 'cyber', effect: 'glitch' })).status, 403);
+  assert.equal((await superAdmin.put('/api/admin/users/' + bob.user.id + '/special-style', { granted: true })).status, 200);
+  assert.ok(await db.one("SELECT 1 FROM notifications WHERE user_id = $1 AND text LIKE '%special username colours%'", [bob.user.id]));
+  assert.equal((await bob.patch('/api/account/owner-style', { color: 'cyber', effect: 'glitch' })).status, 200);
+  let u = (await guest.get('/api/members/' + bob.user.id)).body.user;
+  assert.deepEqual(u.special, { color: 'cyber', effect: 'glitch' });
+  assert.equal(u.specialAccess, true);
+  assert.equal((await bob.patch('/api/account/owner-style', { color: 'plaid', effect: null })).status, 422);
+  assert.equal((await superAdmin.put('/api/admin/users/' + bob.user.id + '/special-style', { granted: false })).status, 200);
+  u = (await guest.get('/api/members/' + bob.user.id)).body.user;
+  assert.equal(u.special, null);
+  assert.equal((await db.one('SELECT special_color FROM users WHERE id = $1', [bob.user.id])).special_color, null, 'revoking clears the style');
+  assert.equal((await bob.patch('/api/account/owner-style', { color: 'cyber', effect: null })).status, 403);
+  assert.equal((await superAdmin.put('/api/admin/users/' + superAdmin.user.id + '/special-style', { granted: false })).status, 422);
+});
+
+test('nobody can override or outrank the owner', async () => {
+  // Staff can't edit or delete the owner's posts, threads or profile posts.
+  const t = await superAdmin.post('/api/forums/f-offtopic/threads', { title: 'Owner announcement', content: 'from the owner' });
+  assert.equal(t.status, 201);
+  const reply = await superAdmin.post('/api/threads/' + t.body.thread.id + '/posts', { content: 'owner reply' });
+  for (const c of [mod, plainAdmin, admin]) {
+    assert.equal((await c.patch('/api/posts/' + t.body.postId, { content: 'hacked' })).status, 403);
+    assert.equal((await c.del('/api/posts/' + reply.body.post.id)).status, 403);
+    assert.equal((await c.patch('/api/threads/' + t.body.thread.id, { title: 'hacked', locked: true })).status, 403);
+    assert.equal((await c.del('/api/threads/' + t.body.thread.id)).status, 403);
+    assert.equal((await c.post('/api/mod/users/' + superAdmin.user.id + '/ban', { reason: 'x' })).status, 403);
+    assert.equal((await c.patch('/api/admin/users/' + superAdmin.user.id + '/role', { role: 'member' })).status, 403);
+  }
+  const pp = await mod.post('/api/members/' + superAdmin.user.id + '/profile-posts', { content: 'hi owner' });
+  const own = await superAdmin.post('/api/members/' + superAdmin.user.id + '/profile-posts', { content: 'owner status' });
+  if (own.status === 201) assert.equal((await admin.del('/api/profile-posts/' + own.body.id)).status, 403);
+  assert.ok(pp.status === 201 || pp.status === 403);
+  // Nobody can become owner: not by role change, not even by the owner, and the database allows only one.
+  assert.equal((await superAdmin.patch('/api/admin/users/' + alice.user.id + '/role', { role: 'super_admin' })).status, 403);
+  assert.equal((await superAdmin.patch('/api/admin/users/' + superAdmin.user.id + '/role', { role: 'member' })).status, 403);
+  await assert.rejects(db.query("UPDATE users SET role_id = 'super_admin' WHERE id = $1", [alice.user.id]), /users_single_owner_idx/);
+  // Staff still moderate lower-ranked members' content normally.
+  const bt = await bob.post('/api/forums/f-offtopic/threads', { title: 'Bob thread', content: 'x' });
+  assert.equal((await mod.patch('/api/threads/' + bt.body.thread.id, { locked: true })).status, 200);
+});
+
 test('forum management: create, nest, members-only, delete rules, audit', async () => {
   const c = await admin.post('/api/admin/categories', { title: 'Events', position: 9 });
   assert.equal(c.status, 201);

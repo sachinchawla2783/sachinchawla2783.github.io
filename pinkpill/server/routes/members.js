@@ -173,6 +173,7 @@ router.get('/members/:id', async (req, res) => {
       warn: !isMe && can(me, 'mod.warn') && me.rank > m.rank,
       ban: !isMe && can(me, 'mod.ban') && me.rank > m.rank,
       setRole: !isMe && can(me, 'admin.permissions') && me.rank > m.rank,
+      grantSpecial: !isMe && !!me && me.role === 'super_admin',
       viewWarnings: can(me, 'mod.warn'),
     },
   });
@@ -352,6 +353,7 @@ router.delete('/profile-posts/:id', requireUser, async (req, res) => {
   const me = req.user;
   const mine = String(pp.author_id) === String(me.id) || String(pp.profile_user_id) === String(me.id);
   if (!mine && !can(me, 'mod.delete_any')) throw forbidden();
+  if (!mine) await require('../lib/permissions').assertOutranksAuthor(me, pp.author_id);
   await db.tx(async (q) => {
     await q.query('UPDATE profile_posts SET deleted_at = now() WHERE id = $1', [pp.id]);
     if (!mine) await require('../lib/audit').audit(q, req, 'profile_post.delete', 'profile_post', pp.id, {});

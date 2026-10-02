@@ -427,6 +427,7 @@
       (!perm.isMe && me() ? '<span class="menu-wrap"><button class="btn" data-menu="profile-more">⋯</button><div class="menu" data-menu-body="profile-more">' +
         (perm.ignore ? '<button data-act="ignore" data-id="' + m.id + '" data-on="' + (d.relation.ignoring ? 1 : '') + '">' + (d.relation.ignoring ? 'Unignore' : 'Ignore') + '</button>' : '') +
         (perm.report ? '<button data-act="report" data-kind="user" data-id="' + m.id + '">Report</button>' : '') +
+        (perm.grantSpecial && m.role !== 'super_admin' ? '<button data-act="grant-special" data-id="' + m.id + '" data-granted="' + (m.specialAccess ? 1 : '') + '">' + (m.specialAccess ? '✨ Remove special style' : '✨ Give special style') + '</button>' : '') +
         '<a href="#/search?m=' + encodeURIComponent(m.username) + '">Find content</a>' +
         (perm.warn ? '<button data-act="warn" data-id="' + m.id + '">Warn</button>' : '') +
         (perm.ban ? '<button data-act="ban" data-id="' + m.id + '" data-on="' + (m.banned ? 1 : '') + '" class="danger">' + (m.banned ? 'Lift ban' : 'Ban / suspend') + '</button>' : '') +

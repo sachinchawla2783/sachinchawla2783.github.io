@@ -10,8 +10,9 @@ let admin, superAdmin, alice, guest;
 
 before(async () => {
   await setup();
-  admin = await member({ username: 'boss', role: 'super_admin' });
+  // There can only be one owner; imports are owner-only.
   superAdmin = await member({ username: 'root', role: 'super_admin' });
+  admin = superAdmin;
   alice = await member({ username: 'alice' });
   guest = client();
 });

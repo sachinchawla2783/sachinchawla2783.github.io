@@ -30,12 +30,17 @@
     if (u.role === 'moderator') return '<span class="staff-badge staff-badge--mod" title="Moderator" aria-label="Moderator">✔</span>';
     return '';
   };
-  const SPECIAL_COLORS = ['rainbow', 'galaxy', 'inferno', 'frost', 'royal', 'toxic', 'sakura', 'midnight'];
-  const SPECIAL_EFFECTS = ['flow', 'pulse', 'sparkle', 'neon'];
-  /* Owner-only colour/effect; overrides VIP styling. Ids are checked against fixed lists before use. */
+  const SPECIAL_NAMES = { rainbow: 'Rainbow', galaxy: 'Galaxy', inferno: 'Inferno', frost: 'Frost', royal: 'Royal gold', toxic: 'Toxic', sakura: 'Sakura', midnight: 'Midnight',
+    ocean: 'Ocean', sunset: 'Sunset', emerald: 'Emerald', crimson: 'Crimson', lavender: 'Lavender', candy: 'Candy', aurora: 'Aurora', chrome: 'Chrome', peach: 'Peach', cyber: 'Cyber',
+    lava: 'Lava', mint: 'Mint', blush: 'Blush', storm: 'Storm', gold: 'Liquid gold', nebula: 'Nebula' };
+  const SPECIAL_FX = { flow: 'Flowing colours', pulse: 'Pulsing glow', sparkle: 'Sparkle ✨', neon: 'Neon', glitch: 'Glitch', float: 'Floating', flicker: 'Flicker',
+    prism: 'Prism (colour-shifting)', shadow: '3D shadow', outline: 'Outline glow', hearts: 'Hearts 💖', crown: 'Crown 👑', stars: 'Stars ⭐', fire: 'Fire 🔥', wave: 'Wave', glow: 'Soft glow' };
+  const SPECIAL_COLORS = Object.keys(SPECIAL_NAMES);
+  const SPECIAL_EFFECTS = Object.keys(SPECIAL_FX);
+  /* Special colour/effect (the owner, or members the owner granted); overrides VIP styling. Ids are checked against fixed lists. */
   function specialName(u) {
     const s = u && u.special;
-    if (!s || u.role !== 'super_admin' || !SPECIAL_COLORS.includes(s.color)) return null;
+    if (!s || !(u.role === 'super_admin' || u.specialAccess) || !SPECIAL_COLORS.includes(s.color)) return null;
     return ' username--special sp--' + s.color + (SPECIAL_EFFECTS.includes(s.effect) ? ' spfx--' + s.effect : '');
   }
   const verifiedBadge = (u) => (u && u.vip && u.vip.badge ? '<span class="vip-verified" title="Lifetime VIP" aria-label="Lifetime VIP">✔</span>' : '');
@@ -60,16 +65,16 @@
   /* Owner style picker (shown on the owner's VIP membership page). */
   function ownerStyleForm(u) {
     const cur = u.special || {};
-    const NAMES = { rainbow: 'Rainbow', galaxy: 'Galaxy', inferno: 'Inferno', frost: 'Frost', royal: 'Royal gold', toxic: 'Toxic', sakura: 'Sakura', midnight: 'Midnight' };
-    const FX = { flow: 'Flowing colours', pulse: 'Pulsing glow', sparkle: 'Sparkle', neon: 'Neon' };
+    const owner = u.role === 'super_admin';
+    const NAMES = SPECIAL_NAMES, FX = SPECIAL_FX;
     const sample = (c, fx) => '<span class="username username--special sp--' + c + (fx ? ' spfx--' + fx : '') + '">' + esc(u.username) + '</span>';
-    return '<form class="block form" data-form="owner-style"><h3 class="block-head">✨ Owner style <span class="small muted">— only you can use these</span></h3><div class="block-body">' +
-      '<p class="small muted">Special username colours and effects reserved for the owner. They replace any VIP colour.</p>' +
+    return '<form class="block form" data-form="owner-style"><h3 class="block-head">✨ ' + (owner ? 'Owner style' : 'Special style') + ' <span class="small muted">— ' + (owner ? 'only you and members you choose' : 'a gift from the owner') + '</span></h3><div class="block-body">' +
+      '<p class="small muted">' + (owner ? 'Special username colours and effects. Give them to members from their profile (⋯ → Give special style).' : 'Special username colours and effects, given to you by the owner.') + ' They replace any VIP colour.</p>' +
       '<div class="field"><span>Colour</span><div class="owner-swatches">' +
       '<label class="vip-choice"><input type="radio" name="color" value=""' + (!cur.color ? ' checked' : '') + '> None</label>' +
       SPECIAL_COLORS.map((c) => '<label class="vip-choice"><input type="radio" name="color" value="' + c + '"' + (cur.color === c ? ' checked' : '') + '> ' + sample(c, 'flow') + ' <span class="small muted">' + NAMES[c] + '</span></label>').join('') + '</div></div>' +
       '<label class="field"><span>Effect</span><select name="effect"><option value="">None</option>' + SPECIAL_EFFECTS.map((x) => '<option value="' + x + '"' + (cur.effect === x ? ' selected' : '') + '>' + FX[x] + '</option>').join('') + '</select></label>' +
-      '<div class="form-actions"><button class="btn btn-primary">Save owner style</button> <span class="small muted">Now: ' + username(u) + '</span></div></div></form>';
+      '<div class="form-actions"><button class="btn btn-primary">Save style</button> <span class="small muted">Now: ' + username(u) + '</span></div></div></form>';
   }
   function username(u, cls) {
     if (!u || u.deleted) return '<span class="username">Deleted member</span>';

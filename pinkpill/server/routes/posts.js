@@ -2,7 +2,7 @@
 const express = require('express');
 const db = require('../db');
 const { z, parse, idParam, content } = require('../lib/validate');
-const { can, assertCan, requireUser } = require('../lib/permissions');
+const { can, assertCan, requireUser, assertOutranksAuthor } = require('../lib/permissions');
 const { summaries } = require('../lib/users');
 const { forbidden, notFound, invalid, tooMany, HttpError } = require('../lib/errors');
 const { assertSafeContent } = require('../lib/content');
@@ -28,6 +28,7 @@ router.patch('/posts/:id', limits.write, async (req, res) => {
   if (post.deleted_at) throw invalid('Restore the post before editing it.');
   if (own && thread.locked && !can(me, 'mod.lock')) throw forbidden('This thread is locked.');
   if (!can(me, 'mod.edit_any')) await T.assertWithinEditWindow(me, post);
+  if (!own) await assertOutranksAuthor(me, post.author_id);
   const d = parse(z.object({ content: content(20000), reason: z.string().trim().max(100).optional() }).strict(), req.body);
   assertSafeContent(d.content);
   await db.tx(async (q) => {
@@ -48,6 +49,7 @@ router.delete('/posts/:id', async (req, res) => {
   if (!((own && can(me, 'post.delete_own')) || can(me, 'mod.delete_any'))) throw forbidden('You cannot delete this post.');
   const d = parse(z.object({ reason: z.string().trim().max(100).optional() }).strict(), req.body);
   if (String(thread.first_post_id) === String(post.id) && !can(me, 'mod.delete_any')) await T.assertCanDeleteOwnThread(me, thread);
+  if (!own) await assertOutranksAuthor(me, post.author_id);
   const result = await db.tx(async (q) => {
     if (String(thread.first_post_id) === String(post.id)) {
       // Deleting the first post removes the whole thread (soft delete).

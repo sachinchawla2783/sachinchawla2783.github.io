@@ -152,9 +152,10 @@ router.patch('/preferences', async (req, res) => {
   res.json({ user: await mePayload(req.user) });
 });
 
-/* Owner-only username colour and effect. */
+/* Special username colour and effect: the owner, or members the owner granted access to. */
 router.patch('/owner-style', async (req, res) => {
-  if (req.user.role !== 'super_admin') throw forbidden('Only the owner can use special colours.');
+  const row = await db.one('SELECT special_access FROM users WHERE id = $1', [req.user.id]);
+  if (req.user.role !== 'super_admin' && !(row && row.special_access)) throw forbidden('Special colours are only for the owner and members the owner chooses.');
   const { COLORS, EFFECTS } = require('../lib/ownerStyle');
   const d = parse(z.object({ color: z.enum(COLORS).nullable(), effect: z.enum(EFFECTS).nullable() }).strict(), req.body);
   await db.query('UPDATE users SET special_color = $2, special_effect = $3 WHERE id = $1', [req.user.id, d.color, d.color ? d.effect : null]);

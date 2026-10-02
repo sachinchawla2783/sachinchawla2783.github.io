@@ -103,6 +103,23 @@ router.patch('/users/:id/role', async (req, res) => {
   res.json({ ok: true });
 });
 
+/* The owner grants or removes a member's access to the special colours and effects. */
+router.put('/users/:id/special-style', async (req, res) => {
+  if (req.user.role !== 'super_admin') throw forbidden('Only the owner can grant special styles.');
+  const { granted } = parse(z.object({ granted: z.boolean() }).strict(), req.body);
+  const target = await db.one('SELECT id, username, role_id, status FROM users WHERE id = $1', [idParam(req.params.id)]);
+  if (!target || target.status === 'deleted') throw notFound('Member not found.');
+  if (target.role_id === 'super_admin') throw invalid('The owner always has special styles.');
+  await db.tx(async (q) => {
+    await q.query(`UPDATE users SET special_access = $2, special_color = CASE WHEN $2 THEN special_color END,
+      special_effect = CASE WHEN $2 THEN special_effect END WHERE id = $1`, [target.id, granted]);
+    await audit(q, req, granted ? 'user.special_grant' : 'user.special_revoke', 'user', target.id, { username: target.username });
+    await notify(q, { userId: target.id, actorId: req.user.id, type: 'moderation', link: '#/account/vip',
+      text: granted ? '✨ The owner gave you special username colours and effects! Pick yours in VIP membership.' : 'Your special username style was removed.' });
+  });
+  res.json({ ok: true, granted });
+});
+
 router.get('/roles', async (req, res) => {
   assertCan(req.user, 'admin.users');
   const all = await roles();

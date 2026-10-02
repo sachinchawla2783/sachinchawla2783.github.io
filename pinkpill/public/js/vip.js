@@ -267,7 +267,7 @@
     const colorById = Object.fromEntries(cat.colors.map((c) => [c.id, c]));
     const frameById = Object.fromEntries(cat.frames.map((f) => [f.id, f]));
     // The owner's special colours live here too, whether or not the owner has a VIP package.
-    let h = me() && me().role === 'super_admin' ? ui.ownerStyleForm(me()) : '';
+    let h = me() && (me().role === 'super_admin' || me().specialAccess) ? ui.ownerStyleForm(me()) : '';
     if (!s.active) {
       h += '<section class="block"><div class="block-body"><p>You don\'t have an active VIP membership.</p><a class="btn btn-primary" href="#/vip">See VIP packages</a></div></section>';
     } else {

@@ -2,7 +2,7 @@
 const express = require('express');
 const db = require('../db');
 const { z, parse, idParam, slugParam, content } = require('../lib/validate');
-const { can, assertCan, requireUser } = require('../lib/permissions');
+const { can, assertCan, requireUser, assertOutranksAuthor } = require('../lib/permissions');
 const { visibleForumIds, allForums, descendants, isVipForum } = require('../lib/forums');
 const vip = require('../lib/vip');
 const { summaries } = require('../lib/users');
@@ -403,6 +403,7 @@ router.patch('/threads/:id', async (req, res) => {
     const curated = new Set((await db.many('SELECT id FROM forums WHERE curated')).map((r) => r.id));
     if ((curated.has(d.forumId) || curated.has(t.forum_id)) && d.forumId !== t.forum_id && !can(me, 'forum.curate')) throw forbidden(CURATED_MSG);
   }
+  if (!own) await assertOutranksAuthor(me, t.author_id);
   await db.tx(async (q) => {
     const sets = [], vals = [t.id];
     const add = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
@@ -447,6 +448,7 @@ router.delete('/threads/:id', async (req, res) => {
   const own = String(t.author_id) === String(me.id);
   if (!((own && can(me, 'post.delete_own')) || can(me, 'mod.delete_any'))) throw forbidden();
   if (!can(me, 'mod.delete_any')) await T.assertCanDeleteOwnThread(me, t);
+  if (!own) await assertOutranksAuthor(me, t.author_id);
   await db.tx(async (q) => {
     await q.query('UPDATE threads SET deleted_at = now(), deleted_by = $2 WHERE id = $1', [t.id, me.id]);
     if (!own) {

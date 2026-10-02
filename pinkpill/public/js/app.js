@@ -348,6 +348,10 @@
       const m = store.user(el.dataset.id);
       modal('Ban ' + (m ? m.username : 'member'), '<form data-form="ban" data-id="' + el.dataset.id + '"><label class="field"><span>Reason (shown to the member)</span><input name="reason" required maxlength="300"></label><label class="field"><span>Length</span><select name="days"><option value="">Permanent ban</option><option value="1">Suspend 1 day</option><option value="3">Suspend 3 days</option><option value="7">Suspend 7 days</option><option value="30">Suspend 30 days</option></select></label><div class="form-actions"><button class="btn btn-danger">Ban member</button></div></form>');
     },
+    async 'grant-special'(el) {
+      const granted = !el.dataset.granted;
+      if (await run(() => api.put('/admin/users/' + el.dataset.id + '/special-style', { granted }))) { toast(granted ? 'Special style given.' : 'Special style removed.'); refresh(); }
+    },
     'set-role'(el) {
       const m = store.user(el.dataset.id);
       modal('Change user group: ' + (m ? m.username : ''), '<form data-form="set-role" data-id="' + el.dataset.id + '"><label class="field"><span>User group</span><select name="role">' + Object.entries(PP.ROLE_TITLES).map(([v, l]) => '<option value="' + v + '"' + (v === el.dataset.role ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label><p class="small muted">You can only grant groups below your own.</p><div class="form-actions"><button class="btn btn-primary">Save</button></div></form>');
