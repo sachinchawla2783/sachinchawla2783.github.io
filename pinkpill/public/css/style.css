@@ -700,3 +700,16 @@ section.block > .table { margin: 0; }
 .nsfw-tag { display: inline-block; font-size: .68rem; font-weight: 800; letter-spacing: .5px; padding: 1px 6px; border-radius: 4px; background: #dc2626; color: #fff; vertical-align: .12em; line-height: 1.4; }
 .notice--nsfw { border-left-color: #dc2626; }
 .nsfw-choice { border: 1px dashed var(--border-strong); border-radius: 8px; padding: 6px 12px; margin: 10px 0; }
+
+.profile-head,
+.profile-head-body,
+.block.profile-head {
+  overflow: visible !important;
+  contain: none !important;
+}
+
+.profile-head {
+  position: relative;
+  z-index: 50;
+}
+
