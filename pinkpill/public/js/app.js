@@ -275,7 +275,7 @@
     report(el) {
       if (!need()) return;
       modal('Report content', '<form data-form="report" data-kind="' + el.dataset.kind + '" data-id="' + el.dataset.id + '"><p class="small muted">Reports are sent to moderators. Please explain what rule this breaks.</p>' +
-        '<label class="field"><span>Reason</span><select name="preset"><option value="">Choose…</option><option>Untagged NSFW content</option><option>Pornography or sexually explicit material</option><option>Low-effort post outside Off-Topic</option><option>Necroposting</option><option>Illegal content</option><option>Sexualizing minors</option><option>Multiple or shared accounts</option><option>Posting for a banned user</option><option>Gore or shock material</option><option>Scat</option><option>Repfarming</option><option>Trolling / disruption</option><option>Private content</option><option>Private surgery results</option><option>Doxxing</option><option>Mass-tagging</option><option>Spam or bots</option><option>AI-generated content</option><option>Impersonation</option><option>Misinformation</option><option>Advertising</option><option>Other</option></select></label>' +
+        '<label class="field"><span>Reason</span><select name="preset"><option value="">Choose…</option><option>Nominate for Best of the Best</option><option>Untagged NSFW content</option><option>Pornography or sexually explicit material</option><option>Low-effort post outside Off-Topic</option><option>Necroposting</option><option>Illegal content</option><option>Sexualizing minors</option><option>Multiple or shared accounts</option><option>Posting for a banned user</option><option>Gore or shock material</option><option>Scat</option><option>Repfarming</option><option>Trolling / disruption</option><option>Private content</option><option>Private surgery results</option><option>Doxxing</option><option>Mass-tagging</option><option>Spam or bots</option><option>AI-generated content</option><option>Impersonation</option><option>Misinformation</option><option>Advertising</option><option>Other</option></select></label>' +
         '<label class="field"><span>Details</span><textarea name="reason" rows="3" maxlength="400"></textarea></label><div class="form-actions"><button class="btn btn-primary">Report</button> <button type="button" class="btn" data-close>Cancel</button></div></form>');
     },
     async bookmark(el) {
@@ -296,6 +296,11 @@
     async 'toggle-sticky'(el) { if (await run(() => api.patch('/threads/' + el.dataset.id, { sticky: !el.dataset.on }))) refresh(); },
     async 'toggle-lock'(el) { if (await run(() => api.patch('/threads/' + el.dataset.id, { locked: !el.dataset.on }))) refresh(); },
     async 'restore-thread'(el) { if (await run(() => api.post('/threads/' + el.dataset.id + '/restore'))) refresh(); },
+    'best-thread'(el) {
+      confirmBox('Move this thread to Best of the Best? The author is notified.', async () => {
+        if (await run(() => api.patch('/threads/' + el.dataset.id, { forumId: 'f-best', notify: true }))) { toast('Added to Best of the Best.'); refresh(); }
+      });
+    },
     async 'move-thread'(el) {
       const d = await run(() => api.get('/forums'));
       if (!d) return;
@@ -395,7 +400,7 @@
         '<label class="field"><span>Notice shown at the top of the forum</span><input name="notice" value="' + esc(f.notice || '') + '" maxlength="500"></label>' +
         '<label class="check"><input type="checkbox" name="membersOnly"' + (f.membersOnly ? ' checked' : '') + '> 🔒 Members only (hidden from guests)</label>' +
         '<label class="check"><input type="checkbox" name="vipOnly"' + (f.vipOnly ? ' checked' : '') + '> 👑 VIP only (hidden from everyone without an active VIP membership; staff always see it)</label>' +
-        '<label class="check"><input type="checkbox" name="staffOnly"' + (f.staffOnly ? ' checked' : '') + '> Only staff can post threads</label><label class="check"><input type="checkbox" name="ratingEnabled"' + (f.ratingEnabled ? ' checked' : '') + '> Rating forum (threads have ratings enabled)</label><div class="form-actions"><button class="btn btn-primary">Save</button></div></form>');
+        '<label class="check"><input type="checkbox" name="staffOnly"' + (f.staffOnly ? ' checked' : '') + '> Only staff can post threads</label><label class="check"><input type="checkbox" name="curated"' + (f.curated ? ' checked' : '') + '> Curated: only the owner and global admins add threads (like Best of the Best)</label><label class="check"><input type="checkbox" name="ratingEnabled"' + (f.ratingEnabled ? ' checked' : '') + '> Rating forum (threads have ratings enabled)</label><div class="form-actions"><button class="btn btn-primary">Save</button></div></form>');
     },
     'delete-forum'(el) { confirmBox('Delete this forum? It must have no threads or sub-forums.', async () => { if (await run(() => api.del('/admin/forums/' + el.dataset.id))) { toast('Forum deleted.'); refresh(); } }, 'Delete'); },
     'edit-category'(el) {
@@ -579,7 +584,7 @@
       toast('Settings saved.');
     },
     async 'edit-forum'(f, d) {
-      const body = { title: d.title.trim(), description: d.description.trim(), icon: d.icon || '💬', categoryId: d.categoryId, parentId: d.parentId || null, position: Number(d.position) || 0, staffOnly: !!d.staffOnly, membersOnly: !!d.membersOnly || !!d.vipOnly, vipOnly: !!d.vipOnly, ratingEnabled: !!d.ratingEnabled, notice: d.notice || '' };
+      const body = { title: d.title.trim(), description: d.description.trim(), icon: d.icon || '💬', categoryId: d.categoryId, parentId: d.parentId || null, position: Number(d.position) || 0, staffOnly: !!d.staffOnly, curated: !!d.curated, membersOnly: !!d.membersOnly || !!d.vipOnly, vipOnly: !!d.vipOnly, ratingEnabled: !!d.ratingEnabled, notice: d.notice || '' };
       if (f.dataset.id) await api.patch('/admin/forums/' + f.dataset.id, body); else await api.post('/admin/forums', body);
       closeModal(); toast('Forum saved.'); refresh();
     },

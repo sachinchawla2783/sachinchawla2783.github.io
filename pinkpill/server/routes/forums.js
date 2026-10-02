@@ -54,9 +54,11 @@ async function forumStats(user, forums) {
   return out;
 }
 
+const CURATED_MSG = 'Only the owner and global admins can add guides to Best of the Best.';
+
 const forumJson = (f, stats) => ({
   id: f.id, categoryId: f.category_id, parentId: f.parent_id, title: f.title, description: f.description, icon: f.icon,
-  position: f.position, staffOnly: f.staff_only, membersOnly: f.members_only, vipOnly: f.vip_only, ratingEnabled: f.rating_enabled, notice: f.notice,
+  position: f.position, staffOnly: f.staff_only, membersOnly: f.members_only, vipOnly: f.vip_only, ratingEnabled: f.rating_enabled, notice: f.notice, curated: f.curated,
   ...(stats ? { stats } : {}),
 });
 
@@ -153,7 +155,7 @@ router.get('/forums/:id', async (req, res) => {
     forum: forumJson(f, stats[f.id]), category: cat, path: forumPath(all, f),
     subforums: subs.map((s) => Object.assign(forumJson(s, stats[s.id]), { children: all.filter((x) => x.parent_id === s.id).map((c) => forumJson(c, stats[c.id])) })),
     sticky, threads, total, page: q.page, perPage: T.THREADS_PER_PAGE,
-    canPost: can(req.user, 'thread.create') && (!f.staff_only || can(req.user, 'forum.post_staff_only')),
+    canPost: can(req.user, 'thread.create') && (!f.staff_only || can(req.user, 'forum.post_staff_only')) && (!f.curated || can(req.user, 'forum.curate')),
     users,
   });
 });
@@ -200,6 +202,7 @@ router.post('/forums/:id/threads', limits.thread, async (req, res) => {
   const f = (await visibleForums(req.user)).find((x) => x.id === id);
   if (!f) throw notFound('Forum not found.');
   if (f.staff_only && !can(req.user, 'forum.post_staff_only')) throw forbidden('Only staff can post in this forum.');
+  if (f.curated && !can(req.user, 'forum.curate')) throw forbidden(CURATED_MSG);
   if (d.poll) {
     assertCan(req.user, 'poll.create');
     const max = Number(await settings.get('max_poll_options', 20));
@@ -350,7 +353,7 @@ router.get('/threads/:id', async (req, res) => {
       react: can(me, 'post.react'), rep: can(me, 'rep.give'), vote: can(me, 'poll.vote'), report: can(me, 'report.create'),
       editThread: (own && can(me, 'post.edit_own')) || can(me, 'mod.edit_any'),
       deleteThread: (own && can(me, 'post.delete_own')) || can(me, 'mod.delete_any'),
-      sticky: can(me, 'mod.sticky'), lock: can(me, 'mod.lock'), move: can(me, 'mod.move'),
+      sticky: can(me, 'mod.sticky'), lock: can(me, 'mod.lock'), move: can(me, 'mod.move'), curate: can(me, 'forum.curate'),
       editAny: can(me, 'mod.edit_any'), deleteAny: can(me, 'mod.delete_any'), warn: can(me, 'mod.warn'),
       editOwn: can(me, 'post.edit_own'), deleteOwn: can(me, 'post.delete_own'),
       // 0 = no limit. The server enforces it; the client only uses it to hide the Edit button.
@@ -396,6 +399,9 @@ router.patch('/threads/:id', async (req, res) => {
   if ('forumId' in d) {
     assertCan(me, 'mod.move');
     if (!(await visibleForumIds(me)).includes(d.forumId)) throw invalid('Destination forum not found.');
+    // Curated forums: only curators move threads in or out.
+    const curated = new Set((await db.many('SELECT id FROM forums WHERE curated')).map((r) => r.id));
+    if ((curated.has(d.forumId) || curated.has(t.forum_id)) && d.forumId !== t.forum_id && !can(me, 'forum.curate')) throw forbidden(CURATED_MSG);
   }
   await db.tx(async (q) => {
     const sets = [], vals = [t.id];
@@ -422,8 +428,9 @@ router.patch('/threads/:id', async (req, res) => {
       await audit(q, req, 'thread.update', 'thread', t.id, Object.fromEntries(Object.entries(d).filter(([k]) => k !== 'notify')));
     }
     if ('forumId' in d && d.notify !== false && d.forumId !== t.forum_id) {
-      const f = await q.one('SELECT title FROM forums WHERE id = $1', [d.forumId]);
-      await notify(q, { userId: t.author_id, actorId: me.id, type: 'moderation', text: `Your thread "${t.title}" was moved to ${f.title}`, link: `#/threads/${t.id}` });
+      const f = await q.one('SELECT title, curated FROM forums WHERE id = $1', [d.forumId]);
+      const text = f.curated ? `🏅 Your thread "${t.title}" was added to ${f.title}!` : `Your thread "${t.title}" was moved to ${f.title}`;
+      await notify(q, { userId: t.author_id, actorId: me.id, type: 'moderation', text, link: `#/threads/${t.id}` });
     }
     if ('locked' in d && d.locked !== t.locked) {
       await notify(q, { userId: t.author_id, actorId: me.id, type: 'moderation', text: `Your thread "${t.title}" was ${d.locked ? 'locked' : 'unlocked'} by a moderator`, link: `#/threads/${t.id}` });

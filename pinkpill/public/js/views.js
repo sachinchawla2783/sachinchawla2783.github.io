@@ -114,7 +114,7 @@
     let html = breadcrumb(crumbs(d)) +
       '<div class="page-head"><h1>' + esc(f.icon) + ' ' + esc(f.title) + '</h1><p class="muted">' + esc(f.description) + '</p>' +
       '<div class="head-actions">' + (u ? '<button class="btn" data-act="mark-forum-read" data-id="' + f.id + '">Mark read</button> ' : '') +
-      (d.canPost ? '<a class="btn btn-primary" href="#/post-thread/' + f.id + '">Post thread</a>' : (f.staffOnly ? '<span class="muted small">Only staff can post here.</span>' : (!u ? '<a class="btn btn-primary" href="#/login">Log in to post</a>' : ''))) + '</div></div>';
+      (d.canPost ? '<a class="btn btn-primary" href="#/post-thread/' + f.id + '">Post thread</a>' : (f.curated && u ? '<span class="muted small">Only the owner and global admins add guides here.</span>' : f.staffOnly ? '<span class="muted small">Only staff can post here.</span>' : (!u ? '<a class="btn btn-primary" href="#/login">Log in to post</a>' : ''))) + '</div></div>';
     if (d.subforums.length) html += '<section class="block node-cat"><h2 class="block-head block-head--cat" data-collapse>Sub-forums</h2><div class="block-body">' + d.subforums.map((s) => nodeRow(s, d.subforums.flatMap((x) => x.children || []))).join('') + '</div></section>';
     if (f.notice) html += '<div class="notice">' + esc(f.notice) + (f.id === 'f-advice' ? ' <a href="#/help/resources">Support resources</a>' : '') + '</div>';
     if (f.vipOnly) html += '<div class="notice notice--vip">👑 <b>VIP Supporters forum.</b> Only members with an active VIP membership (and staff) can see and post here. Thank you for supporting PinkPill!</div>';
@@ -248,6 +248,7 @@
         (perm.sticky ? '<button data-act="toggle-sticky" data-id="' + th.id + '" data-on="' + (th.sticky ? 1 : '') + '">' + (th.sticky ? 'Unstick thread' : 'Stick thread') + '</button>' : '') +
         (perm.lock ? '<button data-act="toggle-lock" data-id="' + th.id + '" data-on="' + (th.locked ? 1 : '') + '">' + (th.locked ? 'Unlock thread' : 'Lock thread') + '</button>' : '') +
         (perm.move ? '<button data-act="move-thread" data-id="' + th.id + '" data-forum="' + th.forumId + '">Move thread</button>' : '') +
+        (perm.curate && th.forumId !== 'f-best' ? '<button data-act="best-thread" data-id="' + th.id + '">🏅 Add to Best of the Best</button>' : '') +
         (th.deleted && perm.deleteAny ? '<button data-act="restore-thread" data-id="' + th.id + '">Restore thread</button>' : '') +
         (perm.deleteThread && !th.deleted ? '<button data-act="delete-thread" data-id="' + th.id + '" data-forum="' + th.forumId + '" class="danger">Delete thread</button>' : '') + '</div></span>' : '') +
       '</div></div>';
@@ -288,11 +289,12 @@
     if (!u) return loginRequired();
     const d = await api.get('/forums');
     const canStaff = u.permissions.includes('forum.post_staff_only');
+    const canCurate = u.permissions.includes('forum.curate');
     if (!forumId) {
       const html = '<div class="page-head"><h1>Post thread</h1><p class="muted">Choose a forum to post in:</p></div><section class="block"><div class="block-body">' +
         d.categories.map((c) => {
           const list = [];
-          const add = (f, depth) => { if (!f.staffOnly || canStaff) list.push('<a class="btn' + (depth ? ' btn-sub' : '') + '" href="#/post-thread/' + f.id + '">' + (depth ? '↳ ' : '') + esc(f.icon) + ' ' + esc(f.title) + '</a>'); d.forums.filter((x) => x.parentId === f.id).sort((a, b) => a.position - b.position).forEach((ch) => add(ch, depth + 1)); };
+          const add = (f, depth) => { if ((!f.staffOnly || canStaff) && (!f.curated || canCurate)) list.push('<a class="btn' + (depth ? ' btn-sub' : '') + '" href="#/post-thread/' + f.id + '">' + (depth ? '↳ ' : '') + esc(f.icon) + ' ' + esc(f.title) + '</a>'); d.forums.filter((x) => x.parentId === f.id).sort((a, b) => a.position - b.position).forEach((ch) => add(ch, depth + 1)); };
           d.forums.filter((f) => f.categoryId === c.id && !f.parentId).sort((a, b) => a.position - b.position).forEach((f) => add(f, 0));
           return list.length ? '<h3>' + esc(c.title) + '</h3><div class="forum-pick">' + list.join('') + '</div>' : '';
         }).join('') + '</div></section>';
@@ -301,6 +303,7 @@
     const f = d.forums.find((x) => x.id === forumId);
     if (!f) return notFound('forum');
     if (f.staffOnly && !canStaff) return errorView('Only staff can post in this forum.');
+    if (f.curated && !canCurate) return errorView('Only the owner and global admins can add guides to ' + f.title + '.');
     const path = [];
     for (let cur = f; cur; cur = cur.parentId ? d.forums.find((x) => x.id === cur.parentId) : null) path.unshift(['#/forums/' + cur.id, cur.title]);
     const cat = d.categories.find((c) => c.id === f.categoryId);

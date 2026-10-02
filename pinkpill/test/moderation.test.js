@@ -164,6 +164,29 @@ test('permissions: only super admins edit role permissions; changes take effect'
   assert.equal((await bob.post('/api/forums/f-offtopic/threads', { title: 'Perm back', content: 'x' })).status, 201);
 });
 
+test('Best of the Best: only the owner and global admins add or remove guides; members read and reply', async () => {
+  const guide = await bob.post('/api/forums/f-skin/threads', { title: 'Ultimate skincare guide', content: 'step 1', prefix: 'guide' });
+  assert.equal(guide.status, 201);
+  const id = guide.body.thread.id;
+  // Members, moderators and admins can't post there or move threads in.
+  assert.equal((await bob.post('/api/forums/f-best/threads', { title: 'Self-promo', content: 'x' })).status, 403);
+  assert.equal((await mod.post('/api/forums/f-best/threads', { title: 'Mod guide', content: 'x' })).status, 403);
+  assert.equal((await mod.patch('/api/threads/' + id, { forumId: 'f-best' })).status, 403);
+  assert.equal((await plainAdmin.patch('/api/threads/' + id, { forumId: 'f-best' })).status, 403);
+  assert.equal((await bob.get('/api/forums/f-best')).body.canPost, false);
+  // A global admin curates it; the author is told.
+  assert.equal((await admin.get('/api/threads/' + id)).body.permissions.curate, true);
+  assert.equal((await mod.get('/api/threads/' + id)).body.permissions.curate, false);
+  assert.equal((await admin.patch('/api/threads/' + id, { forumId: 'f-best' })).status, 200);
+  assert.ok(await db.one("SELECT 1 FROM notifications WHERE user_id = $1 AND text LIKE '%added to Best of the Best%'", [bob.user.id]));
+  // Everyone can read and reply.
+  assert.equal((await guest.get('/api/threads/' + id)).status, 200);
+  assert.equal((await alice.post('/api/threads/' + id + '/posts', { content: 'Great guide' })).status, 201);
+  // Moderators can't move it back out; the owner can post there directly.
+  assert.equal((await mod.patch('/api/threads/' + id, { forumId: 'f-skin' })).status, 403);
+  assert.equal((await superAdmin.post('/api/forums/f-best/threads', { title: 'Owner pick', content: 'x' })).status, 201);
+});
+
 test('forum management: create, nest, members-only, delete rules, audit', async () => {
   const c = await admin.post('/api/admin/categories', { title: 'Events', position: 9 });
   assert.equal(c.status, 201);
