@@ -138,8 +138,9 @@ function createApp(opts = {}) {
 
   app.use(express.static(path.join(__dirname, '..', 'public'), {
     index: 'index.html',
-    maxAge: config.isProd ? '1h' : 0,
-    setHeaders: (res, file) => { if (file.endsWith('.html')) res.set('Cache-Control', 'no-cache'); },
+    // Asset URLs aren't versioned, so browsers must revalidate (cheap 304 via ETag); otherwise a deploy
+    // stays invisible until a cached copy expires.
+    setHeaders: (res) => res.set('Cache-Control', 'no-cache'),
   }));
 
   // eslint-disable-next-line no-unused-vars

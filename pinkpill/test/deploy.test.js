@@ -316,6 +316,21 @@ test('production mode refuses unsafe or incomplete configuration', async () => {
   }
 });
 
+test('production: JS and CSS are revalidated on every load so a deploy shows up immediately', async () => {
+  const s = await startProd({});
+  try {
+    assert.ok(s.started, s.output());
+    const h = { Host: 'pinkpill.test', 'X-Forwarded-Proto': 'https' };
+    for (const file of ['/js/vip.js', '/css/style.css', '/']) {
+      const r = await raw(s.port, 'GET', file, h);
+      assert.equal(r.status, 200, file);
+      assert.equal(r.headers['cache-control'], 'no-cache', file);
+      assert.ok(r.headers.etag, file + ' has an ETag');
+      const again = await raw(s.port, 'GET', file, Object.assign({ 'If-None-Match': r.headers.etag }, h));
+      assert.equal(again.status, 304, file + ' unchanged files are not re-downloaded');
+    }
+  } finally { s.child.kill('SIGTERM'); }
+});
 test('Render: TRUST_PROXY=1 trusts one proxy hop, so HTTPS requests on the canonical host are not redirected', async () => {
   const s = await startProd({ APP_URL: '', RENDER_EXTERNAL_URL: 'https://pinkpill-demo.onrender.com', TRUST_PROXY: '1' });
   try {
