@@ -143,6 +143,14 @@ test('roles: only the owner assigns roles; staff tiers have limited powers', asy
   assert.equal((await plainAdmin.get('/api/admin/stats')).status, 200);
   assert.equal((await plainAdmin.get('/api/admin/accounts')).status, 403);
   assert.equal((await plainAdmin.post('/api/admin/categories', { title: 'Nope' })).status, 403);
+  // Owner-only pages: roles & permissions, settings, VIP admin, data/import, starter content.
+  for (const c of [alice, plainAdmin, mod]) {
+    assert.equal((await c.get('/api/admin/roles')).status, 403);
+    assert.equal((await c.get('/api/admin/settings')).status, 403);
+    assert.equal((await c.get('/api/admin/vip/products')).status, 403);
+    assert.equal((await c.post('/api/admin/import', {})).status, 403);
+    assert.equal((await c.post('/api/admin/starter-content')).status, 403);
+  }
   // Moderator: no admin panel at all.
   assert.equal((await mod.get('/api/admin/stats')).status, 403);
   assert.equal((await superAdmin.patch(`/api/admin/users/${alice.user.id}/role`, { role: 'member' })).status, 200);

@@ -807,7 +807,8 @@
     if (P('mod.view_log')) tabs.push(['log', 'Moderation log']);
     if (P('admin.stats')) tabs.push(['stats', 'Dashboard']);
     if (P('admin.forums')) tabs.push(['forums', 'Forums']);
-    if (P('admin.users')) tabs.push(['accounts', '🕵 New accounts & alts'], ['roles', 'Roles & permissions']);
+    if (P('admin.users')) tabs.push(['accounts', '🕵 New accounts & alts']);
+    if (P('admin.permissions')) tabs.push(['roles', 'Roles & permissions']);
     if (P('admin.settings')) tabs.push(['settings', 'Settings']);
     if (P('admin.vip')) tabs.push(['vip', '👑 VIP']);
     if (P('admin.import')) tabs.push(['data', 'Data']);

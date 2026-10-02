@@ -127,7 +127,7 @@ router.put('/users/:id/special-style', async (req, res) => {
 });
 
 router.get('/roles', async (req, res) => {
-  assertCan(req.user, 'admin.users');
+  assertCan(req.user, 'admin.permissions');
   const all = await roles();
   res.json({
     roles: Object.values(all).sort((a, b) => a.rank - b.rank).map((r) => ({ id: r.id, title: r.title, rank: r.rank, isStaff: r.isStaff, permissions: [...r.permissions].sort() })),
