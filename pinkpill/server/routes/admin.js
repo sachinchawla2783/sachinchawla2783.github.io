@@ -3,7 +3,13 @@ const express = require('express');
 const db = require('../db');
 const { z, parse, idParam, slugParam } = require('../lib/validate');
 const { assertCan, roles, invalidateRoles } = require('../lib/permissions');
-const { forbidden, notFound, conflict, invalid } = require('../lib/errors');
+const { forbidden, notFound, conflict, invalid, unauthorized } = require('../lib/errors');
+
+/* Owner-only actions: 401 for guests, 403 for everyone except the owner. */
+function assertOwner(req, msg) {
+  if (!req.user) throw unauthorized();
+  if (req.user.role !== 'super_admin') throw forbidden(msg);
+}
 const { notify } = require('../lib/notify');
 const { audit } = require('../lib/audit');
 const settings = require('../lib/settings');
@@ -105,7 +111,7 @@ router.patch('/users/:id/role', async (req, res) => {
 
 /* The owner grants or removes a member's access to the special colours and effects. */
 router.put('/users/:id/special-style', async (req, res) => {
-  if (req.user.role !== 'super_admin') throw forbidden('Only the owner can grant special styles.');
+  assertOwner(req, 'Only the owner can grant special styles.');
   const { granted } = parse(z.object({ granted: z.boolean() }).strict(), req.body);
   const target = await db.one('SELECT id, username, role_id, status FROM users WHERE id = $1', [idParam(req.params.id)]);
   if (!target || target.status === 'deleted') throw notFound('Member not found.');
@@ -299,6 +305,30 @@ router.patch('/settings', async (req, res) => {
 });
 
 /* ---------- import from the localStorage prototype ---------- */
+
+/* Starter accounts and threads (owner only). */
+router.post('/starter-content', async (req, res) => {
+  assertOwner(req, 'Only the owner can add starter content.');
+  const { addStarterContent } = require('../lib/starter');
+  const r = await db.tx(async (q) => {
+    const out = await addStarterContent(q);
+    if (out.created) await audit(q, req, 'starter.add', 'site', 'starter', out);
+    return out;
+  });
+  require('../lib/forums').invalidate();
+  res.json(r);
+});
+router.delete('/starter-content', async (req, res) => {
+  assertOwner(req, 'Only the owner can remove starter content.');
+  const { removeStarterContent } = require('../lib/starter');
+  const r = await db.tx(async (q) => {
+    const out = await removeStarterContent(q);
+    await audit(q, req, 'starter.remove', 'site', 'starter', out);
+    return out;
+  });
+  require('../lib/forums').invalidate();
+  res.json(r);
+});
 
 router.post('/import', async (req, res) => {
   assertCan(req.user, 'admin.import');

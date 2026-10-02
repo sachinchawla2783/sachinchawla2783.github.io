@@ -348,6 +348,16 @@
       const m = store.user(el.dataset.id);
       modal('Ban ' + (m ? m.username : 'member'), '<form data-form="ban" data-id="' + el.dataset.id + '"><label class="field"><span>Reason (shown to the member)</span><input name="reason" required maxlength="300"></label><label class="field"><span>Length</span><select name="days"><option value="">Permanent ban</option><option value="1">Suspend 1 day</option><option value="3">Suspend 3 days</option><option value="7">Suspend 7 days</option><option value="30">Suspend 30 days</option></select></label><div class="form-actions"><button class="btn btn-danger">Ban member</button></div></form>');
     },
+    async 'starter-add'() {
+      const r = await run(() => api.post('/admin/starter-content'));
+      if (r) { toast(r.created ? 'Added ' + r.members + ' accounts and ' + r.threads + ' threads.' : 'Starter content is already there.'); refresh(); }
+    },
+    'starter-remove'() {
+      confirmBox('Remove all starter accounts, their threads and posts?', async () => {
+        const r = await run(() => api.del('/admin/starter-content'));
+        if (r) { toast('Removed ' + r.removed + ' starter accounts.'); refresh(); }
+      });
+    },
     async 'grant-special'(el) {
       const granted = !el.dataset.granted;
       if (await run(() => api.put('/admin/users/' + el.dataset.id + '/special-style', { granted }))) { toast(granted ? 'Special style given.' : 'Special style removed.'); refresh(); }
