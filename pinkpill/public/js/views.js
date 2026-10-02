@@ -731,7 +731,6 @@
         '<li><b>Keep low-effort posts in Off-Topic.</b><ul><li>Short, throwaway posts belong in the Off-Topic section only.</li><li>They\'re never okay in threads marked “Serious.”</li></ul></li>' +
         '<li><b>Don\'t revive dead threads.</b><ul><li>Leave threads older than a month alone unless you\'re adding something real.</li><li>Bumping, one-word replies, quotes or “this” don\'t count.</li></ul></li>' +
         '<li><b>Nothing illegal.</b><ul><li>Don\'t post illegal content or encourage anyone to break the law.</li><li>When in doubt, leave it out.</li></ul></li>' +
-        '<li><b>Never sexualize minors.</b><ul><li>Anyone under 18 is off-limits, full stop.</li></ul></li>' +
         '<li><b>Tag NSFW content.</b><ul><li>Threads with mature or sensitive must carry the NSFW tag.</li><li>Moderators tag untagged NSFW threads; repeatedly skipping the tag can lead to a ban.</li></ul></li>' +
         '<li><b>One account per person, and it\'s yours alone.</b><ul><li>Duplicate or shared accounts get every linked account banned.</li></ul></li>' +
         '<li><b>Don\'t post for banned members.</b></li>' +
@@ -740,7 +739,7 @@
         '<li><b>No repfarming.</b><ul><li>Don\'t game the reputation system to boost yourself or others.</li></ul></li>' +
         '<li><b>Don\'t be here just to troll.</b><ul><li>Over-the-top personas are fine, but accounts that mainly exist to provoke, start fights or damage the forum will be removed permanently.</li></ul></li>' +
         '<li><b>Keep private things private.</b><ul><li>Don\'t share private messages, personal information or private images.</li></ul></li>' +
-        '<li><b>Don\'t share private surgery results.</b><ul><li>This is a permanent ban, even if it was an accident.</li></ul></li>' +
+        '<li><b>Don\'t share private surgery results without clear consent</b><ul><li>This is a permanent ban, even if it was an accident.</li></ul></li>' +
         '<li><b>No doxxing or threats to dox.</b><ul><li>This covers everyone, including people outside the forum.</li></ul></li>' +
         '<li><b>Don\'t mass-tag members.</b></li>' +
         '<li><b>No spam.</b><ul><li>Don\'t flood the forum with repetitive posts.</li></ul></li>' +
@@ -757,7 +756,7 @@
         '<dt>Where can I ask for advice about my life or dating?</dt><dd>Post in <a href="#/forums/f-advice">Situations &amp; Dating Advice</a>. Never post other people\'s personal details.</dd>' +
         '<dt>Why can\'t I post yet?</dt><dd>New accounts must verify their email address first. Check your inbox (and spam folder) for the link, or resend it from Account details.</dd>' +
         '<dt>How do I ignore someone?</dt><dd>Open their profile → ⋯ → Ignore. Their posts are hidden and they can\'t message you or post on your profile.</dd>' +
-        '<dt>What does the NSFW tag mean?</dt><dd>It\'s a content warning for mature or sensitive but non-explicit content: revealing photos, graphic before/after photos, strong language or mature discussions. It shows on every list, search result and feed where the thread appears. PinkPill does not allow pornography or sexually explicit material, tagged or not.</dd>' +
+        '<dt>What does the NSFW tag mean?</dt><dd>It\'s a content warning for mature or sensitive, explicit content: revealing photos, graphic before/after photos, strong language or mature discussions, and other things. It shows on every list, search result and feed where the thread appears.</dd>' +
         '<dt>What is VIP?</dt><dd>An optional paid membership that supports PinkPill and unlocks perks such as VIP username colors, the VIP Supporters forum and larger conversations. See <a href="#/vip">VIP</a> (log in first). Monthly packages are one-time payments for one month and don\'t renew automatically.</dd>' +
         '<dt>Can I delete my account?</dt><dd>Yes: Account → Your data.</dd></dl>',
       bbcode: '<table class="table"><thead><tr><th>You type</th><th>You get</th></tr></thead><tbody>' + bbExamples.map((e) => '<tr><td><code>' + esc(e).replace(/\n/g, '<br>') + '</code></td><td class="bbwrap">' + bbcode(e) + '</td></tr>').join('') + '<tr><td><code>[img]https://…[/img]</code></td><td>An image (or use 📎 in the editor to upload one)</td></tr></tbody></table>',
