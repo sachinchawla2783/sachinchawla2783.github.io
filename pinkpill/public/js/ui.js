@@ -49,11 +49,21 @@
     return '<a href="' + link + '" class="avatar avatar-' + size + fr.cls + '" style="' + fr.style + 'background:' + safeColor(u.color) + '" title="' + esc(u.username) + '">' + esc(u.username[0].toUpperCase()) + '</a>';
   }
 
+  /* Post-count colour tiers 1..39 get distinct hues (golden-angle spacing); tier 40 is the glowing pink gradient. */
+  const tierHue = (t) => Math.round((205 + t * 137.508) % 360);
+  function tierName(u) {
+    const t = Number(u && u.nameTier) || 0;
+    if (t >= 40) return { cls: ' username--tier-max', style: '' };
+    if (t >= 1) return { cls: ' username--tier', style: '--th:' + tierHue(t) };
+    return null;
+  }
   function username(u, cls) {
     if (!u || u.deleted) return '<span class="username">Deleted member</span>';
     const role = u.role === 'admin' || u.role === 'global_admin' || u.role === 'super_admin' ? ' username--admin' : u.role === 'moderator' ? ' username--mod' : '';
     const sp = specialName(u);
-    const v = sp ? { cls: sp, style: '' } : vipName(u);
+    let v = sp ? { cls: sp, style: '' } : vipName(u);
+    // Post-count colour for members whose name isn't already coloured by staff role, VIP or owner style.
+    if (!sp && !role && !v.style) { const t = tierName(u); if (t) v = { cls: v.cls + t.cls, style: t.style }; }
     return '<a href="#/members/' + u.id + '" class="username' + role + v.cls + (u.banned ? ' username--banned' : '') + ' ' + (cls || '') + '"' + (v.style ? ' style="' + v.style + '"' : '') + ' data-user-tip="' + u.id + '">' + esc(u.username) + '</a>' + ownerBadge(u) + verifiedBadge(u);
   }
 
@@ -254,5 +264,5 @@
     el.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - el.offsetWidth - 8)) + 'px';
   }
 
-  window.PP.ui = { nsfwTag, safeColor, vipName, ownerBadge, SPECIAL_COLORS, SPECIAL_EFFECTS, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
+  window.PP.ui = { nsfwTag, safeColor, vipName, tierHue, ownerBadge, SPECIAL_COLORS, SPECIAL_EFFECTS, verifiedBadge, avatar, username, userTitle, roleBanner, prefix, pagination, breadcrumb, editor, bindEditors, clearDraft, toast, modal, closeModal, confirmBox, bindUserTips, insertAt };
 })();

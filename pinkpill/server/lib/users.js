@@ -2,6 +2,7 @@
 const db = require('../db');
 const { rankFor, byId } = require('./trophies');
 const vip = require('./vip');
+const { nameTier } = require('./nameColors');
 
 const ONLINE_MS = 15 * 60 * 1000;
 const avatarUrl = (id) => (id ? '/media/' + id : null);
@@ -39,6 +40,7 @@ function toSummary(r, vipStyle) {
     isStaff: r.is_staff,
     customTitle: r.custom_title || '',
     rank: rankFor(r.post_count),
+    nameTier: deleted ? 0 : nameTier(r.post_count, r.created_at),
     avatarUrl: deleted ? null : avatarUrl(r.avatar_id),
     color: r.avatar_color || '#ec4899',
     location: deleted ? '' : (r.location || ''),
