@@ -1,0 +1,57 @@
+# PinkPill CI: tests against a throwaway PostgreSQL service. Needs no production credentials.
+name: PinkPill CI
+on:
+  push:
+    paths: ['pinkpill/**', '.github/workflows/pinkpill-ci.yml']
+  pull_request:
+    paths: ['pinkpill/**', '.github/workflows/pinkpill-ci.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pinkpill
+          POSTGRES_PASSWORD: pinkpill
+          POSTGRES_DB: pinkpill_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pinkpill" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL_TEST: postgres://pinkpill:pinkpill@localhost:5432/pinkpill_test
+      DATABASE_URL_E2E: postgres://pinkpill:pinkpill@localhost:5432/pinkpill_e2e
+      PGPASSWORD: pinkpill
+    defaults:
+      run:
+        working-directory: pinkpill
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pinkpill/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build check (syntax, assets, no secrets or dev URLs in frontend)
+        run: npm run build
+      - name: Create E2E database
+        run: psql -h localhost -U pinkpill -d pinkpill_test -c "CREATE DATABASE pinkpill_e2e"
+      - name: Install S3 emulator for the R2 driver test
+        run: pipx install "moto[server]" && echo "MOTO_SERVER=$(command -v moto_server || echo $HOME/.local/bin/moto_server)" >> "$GITHUB_ENV"
+      - name: API, security, storage, email and deployment tests
+        run: npm test
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: pinkpill/test-results/
+          retention-days: 7

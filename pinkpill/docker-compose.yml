@@ -1,0 +1,42 @@
+# Self-hosted PinkPill: app + PostgreSQL on one machine (e.g. an always-free cloud VM).
+# Alternative to Render/Neon/R2 (see DEPLOYMENT.md): everything on one VM with persistent disks.
+# 1. cp .env.example .env and set APP_URL, POSTGRES_PASSWORD, RESEND_API_KEY, MAIL_FROM
+# 2. docker compose up -d
+# 3. docker compose exec app node server/scripts/create-admin.js
+# Put a TLS-terminating reverse proxy (e.g. Caddy) in front of 127.0.0.1:8000.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pinkpill
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: pinkpill
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pinkpill"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "8000"
+      DATABASE_URL: postgres://pinkpill:${POSTGRES_PASSWORD}@db:5432/pinkpill
+      STORAGE_DRIVER: local
+      ALLOW_LOCAL_STORAGE_IN_PRODUCTION: "true"   # the uploads volume below is persistent
+      STORAGE_DIR: /app/storage/uploads
+      TRUST_PROXY: "1"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - uploads:/app/storage/uploads
+volumes:
+  pgdata:
+  uploads:
