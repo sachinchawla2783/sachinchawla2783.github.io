@@ -30,7 +30,7 @@ async function checkTrophies(q, userId) {
       (SELECT count(*)::int FROM reactions r JOIN posts p ON p.id = r.post_id WHERE p.author_id = $1 AND p.deleted_at IS NULL AND r.reaction IN ('like','love','glow','hug')) AS "reactionScore",
       (SELECT coalesce(sum(value), 0)::int FROM reputation WHERE receiver_id = $1) AS rep,
       (SELECT count(*)::int FROM follows WHERE followee_id = $1) AS followers,
-      (SELECT count(*)::int FROM threads WHERE author_id = $1 AND forum_id = 'f-success' AND deleted_at IS NULL) AS glowups`, [userId]);
+      (SELECT count(*)::int FROM threads WHERE author_id = $1 AND prefix = 'success' AND deleted_at IS NULL) AS glowups`, [userId]);
   const have = new Set((await q.many('SELECT trophy_id FROM user_trophies WHERE user_id = $1', [userId])).map((r) => r.trophy_id));
   for (const t of TROPHIES) {
     if (have.has(t.id) || !t.test(s)) continue;

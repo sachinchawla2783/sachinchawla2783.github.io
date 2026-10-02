@@ -26,13 +26,13 @@ const USERS = [
 
 const THREADS = [
   ['f-announce', 'Aurora', 'Welcome to PinkPill — read this first 💗', 'discussion', { sticky: true, tags: ['welcome', 'rules'] }, [
-    ['Aurora', '[b]Welcome to PinkPill![/b]\n\nThis is a looksmaxxing community for women: skincare, hair, makeup, fitness, style, facial aesthetics and everything in between.\n\n[b]What makes us different:[/b]\n• Evidence over hype. Cite sources when you can.\n• Feedback is [i]opt-in[/i] and constructive. No bullying, no "it\'s over".\n• Zero tolerance for pro-ED content, DIY injections, bonesmashing or other dangerous practices.\n\nPlease read the [url=#/help/rules]forum rules[/url] and introduce yourself in [url=#/forums/f-intro]Introductions[/url]. ✨'],
+    ['Aurora', '[b]Welcome to PinkPill![/b]\n\nThis is a looksmaxxing community for women: skincare, hair, makeup, fitness, style, facial aesthetics and everything in between.\n\n[b]What makes us different:[/b]\n• Evidence over hype. Cite sources when you can.\n• Feedback is [i]opt-in[/i] and constructive. No bullying, no "it\'s over".\n• Zero tolerance for pro-ED content, DIY injections, bonesmashing or other dangerous practices.\n\nPlease read the [url=#/help/rules]forum rules[/url] and introduce yourself with an [b]Introduction[/b] thread in [url=#/forums/f-offtopic]Off-Topic[/url]. ✨'],
     ['Celeste', 'So happy this exists. If you need help with anything, tag @Celeste 💕'],
     ['Vivienne', 'Finally a place like this that isn\'t toxic. Thank you!']]],
   ['f-news', 'Aurora', 'New study: daily SPF use slows visible skin aging', 'news', { tags: ['news', 'spf'] }, [
     ['Aurora', 'A randomised trial summary making the rounds again: participants who applied broad-spectrum sunscreen [b]daily[/b] showed significantly less photoaging over 4.5 years than those who used it at their own discretion.\n\nTakeaway: the best anti-aging product is still the one you wear every morning.'],
     ['Celeste', 'The classic Nambour trial! Always worth re-sharing.']]],
-  ['f-intro', 'Freya', 'Hi from Norway 👋', null, {}, [
+  ['f-offtopic', 'Freya', 'Hi from Norway 👋', 'intro', {}, [
     ['Freya', 'Hi everyone! I\'m Freya. Mostly here to learn about skincare and figure out my colour season. Nice to meet you all!'],
     ['Mireille', 'Welcome Freya! Post a no-makeup pic in daylight in the colour analysis thread and I\'ll help you out.'],
     ['Aurora', 'Welcome aboard 💗']]],
@@ -64,7 +64,7 @@ const THREADS = [
   ['f-advice', 'Freya', 'He only texts me late at night — am I overthinking?', 'question', { tags: ['dating'] }, [
     ['Freya', 'He\'s sweet in person, but mostly messages after 11pm and rarely makes plans. Red flag?'],
     ['Dahlia', 'Not overthinking. Ask him directly for a proper date this weekend and see how he responds.']]],
-  ['f-wellbeing', 'Aurora', 'Support resources (pinned)', 'serious', { sticky: true, locked: true, tags: ['support'] }, [
+  ['f-offtopic', 'Aurora', 'Support resources (pinned)', 'mentalhealth', { sticky: true, locked: true, tags: ['support'] }, [
     ['Aurora', 'If you\'re struggling, you\'re not alone and you deserve help. See [url=#/help/resources]Support resources[/url]. This forum is peer support, not a replacement for professional care.']]],
   ['f-offtopic', 'Dahlia', 'What are you listening to right now?', null, {}, [
     ['Dahlia', 'Drop your current song 🎧'], ['Sakura', 'Gym playlist on repeat lol']]],

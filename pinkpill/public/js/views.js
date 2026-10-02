@@ -516,7 +516,7 @@
     try {
       await api.post('/auth/verify-email', { token: q.get('token') || '' });
       await api.loadSession();
-      return { title: 'Email verified', html: '<div class="auth-wrap"><section class="block"><h2 class="block-head">Email verified 💗</h2><div class="block-body"><p>Thanks! Your account is active and you can start posting.</p><a class="btn btn-primary" href="#/forums/f-intro">Introduce yourself</a></div></section></div>' };
+      return { title: 'Email verified', html: '<div class="auth-wrap"><section class="block"><h2 class="block-head">Email verified 💗</h2><div class="block-body"><p>Thanks! Your account is active and you can start posting.</p><a class="btn btn-primary" href="#/post-thread/f-offtopic">Introduce yourself</a></div></section></div>' };
     } catch (e) {
       return { title: 'Verification failed', html: '<div class="auth-wrap"><section class="block"><h2 class="block-head">Verification failed</h2><div class="block-body"><p>' + esc(e.message) + '</p>' + (me() ? '<button class="btn" data-act="resend-verification">Send a new link</button>' : '<a class="btn" href="#/login">Log in to request a new link</a>') + '</div></section></div>' };
     }

@@ -14,7 +14,7 @@ const REACTIONS = new Set(['like', 'love', 'glow', 'haha', 'wow', 'hug', 'sad'])
 const PREFIXES = new Set(require('./threads').PREFIXES);
 // Prefixes from the prototype that were renamed.
 const OLD_PREFIX = { routine: 'guide', glowup: 'success', research: 'theory', vent: 'venting' };
-const FORUM_ALIASES = { 'f-general': 'f-looks' };
+const FORUM_ALIASES = { 'f-general': 'f-looks', 'f-intro': 'f-offtopic', 'f-success': 'f-looks', 'f-wellbeing': 'f-offtopic' };
 
 const str = (v, max, dflt = '') => (typeof v === 'string' ? v.slice(0, max) : dflt);
 const arr = (v) => (Array.isArray(v) ? v : []);

@@ -64,7 +64,7 @@ router.post('/register', limits.register, async (req, res) => {
         [d.username, d.email, hash]);
       await q.query('INSERT INTO profiles (user_id, birthday, avatar_color) VALUES ($1, $2, $3)', [u.id, d.birthday, COLORS[Math.floor(Math.random() * COLORS.length)]]);
       await q.query('INSERT INTO user_preferences (user_id) VALUES ($1)', [u.id]);
-      await notify(q, { userId: u.id, type: 'welcome', text: 'Welcome to PinkPill! Start by introducing yourself.', link: '#/forums/f-intro' });
+      await notify(q, { userId: u.id, type: 'welcome', text: 'Welcome to PinkPill! Start by introducing yourself with an "Introduction" thread in Off-Topic.', link: '#/post-thread/f-offtopic' });
       await signals.onRegister(q, req, res, u);
       return { user: u, token: await issueVerification(q, u) };
     }));

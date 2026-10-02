@@ -269,3 +269,19 @@ test('private forum threads: invisible to guests everywhere', async () => {
   const idx = await guest.get('/api/forums');
   assert.ok(!JSON.stringify(idx.body).includes('Secret haircut'));
 });
+
+test('no Community category: intro, success and mental health are prefixes; advice and VIP live in Looksmaxxing', async () => {
+  const g = await guest.get('/api/forums');
+  assert.ok(!g.body.categories.some((c) => c.id === 'c-community'));
+  const ids = g.body.forums.map((f) => f.id);
+  for (const gone of ['f-intro', 'f-success', 'f-wellbeing']) assert.ok(!ids.includes(gone), gone);
+  assert.equal(g.body.forums.find((f) => f.id === 'f-advice').categoryId, 'c-looks');
+  assert.equal(g.body.forums.find((f) => f.id === 'f-feedback').categoryId, 'c-info');
+  assert.ok(!ids.includes('f-vip'), 'VIP Supporters stays hidden from guests');
+  assert.ok(!(await alice.get('/api/forums')).body.forums.some((f) => f.id === 'f-vip'), 'and from members without VIP');
+  const vipRow = await db.one("SELECT category_id, vip_only FROM forums WHERE id = 'f-vip'");
+  assert.deepEqual(vipRow, { category_id: 'c-looks', vip_only: true });
+  for (const prefix of ['intro', 'success', 'mentalhealth']) {
+    assert.equal((await newThread(alice, 'f-offtopic', { title: 'Prefix ' + prefix, prefix })).status, 201, prefix);
+  }
+});

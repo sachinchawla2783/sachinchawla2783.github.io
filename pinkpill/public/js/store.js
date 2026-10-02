@@ -47,6 +47,8 @@
     { id: 'cope', label: 'Cope', color: '#a16207' },
     { id: 'slay', label: 'Slay', color: '#db2777' },
     { id: 'rateme', label: 'Rate Me', color: '#ec4899' },
+    { id: 'intro', label: 'Introduction', color: '#14b8a6' },
+    { id: 'mentalhealth', label: 'Mental Health', color: '#a855f7' },
   ];
 
   PP.ROLE_TITLES = { member: 'Registered member', moderator: 'Moderator', admin: 'Admin', global_admin: 'Global Admin', super_admin: 'Owner' };

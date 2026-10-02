@@ -458,7 +458,7 @@
     },
     async register(f, d) {
       const r = await api.post('/auth/register', { username: d.username, email: d.email, password: d.password, birthday: d.birthday, agree: !!d.agree, website: d.website || '', turnstileToken: turnstileToken(f) });
-      await afterLogin('#/forums/f-intro');
+      await afterLogin('#/forums/f-offtopic');
       toast('Welcome to PinkPill, ' + me().username + '! 💗' + (r.emailSent === false ? ' We couldn\'t send your verification email just now; use "Resend email" in a few minutes.' : me().mustVerifyEmail ? ' Check your email to verify your account.' : ''));
     },
     async 'claim-admin'(f, d) {
