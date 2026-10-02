@@ -897,7 +897,7 @@
         (legacy ? '<p><button class="btn btn-primary" data-act="import-legacy-local">Import the prototype data stored in this browser</button></p>' : '') +
         '<label class="btn">⬆ Import a prototype JSON file<input type="file" accept="application/json,.json" data-import hidden></label><div data-import-result></div></div></section>' +
         (u.role === 'super_admin' ? '<section class="block"><h3 class="block-head">Starter accounts &amp; threads</h3><div class="block-body">' +
-          '<p>Adds 12 member accounts and 14 threads with replies across the main forums so the site isn\'t empty. Nobody can log in to them, they never show as online and they can\'t be messaged.</p>' +
+          '<p>Adds 182 member accounts and 40+ threads, each with plenty of replies, across the main forums so the site isn\'t empty. Nobody can log in to them, they never show as online and they can\'t be messaged.</p>' +
           '<div class="form-actions"><button class="btn btn-primary" data-act="starter-add">Add starter accounts &amp; threads</button> <button class="btn btn-danger" data-act="starter-remove">Remove all starter content</button></div></div></section>' : '');
     }
     const html = '<div class="page-head"><h1>' + (P('admin.stats') ? 'Admin & moderator panel' : 'Moderator panel') + '</h1></div><nav class="tabs">' + tabs.map(([k, l]) => '<a class="tab' + (k === tab ? ' active' : '') + '" href="#/mod/' + k + '">' + l + '</a>').join('') + '</nav>' + body;

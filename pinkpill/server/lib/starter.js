@@ -1,128 +1,110 @@
 'use strict';
-/* Starter content for a new forum: a handful of member accounts and threads so the site isn't empty.
- * Owner-only (Admin panel → Data). The accounts have no password (nobody can log in as them), never
- * show as online, and are flagged `starter` so the owner can remove all of it in one click. */
+/* Starter content for a new forum: 182 member accounts and casual forum threads with replies so the
+ * site isn't empty. Owner-only (Admin panel → Data). The accounts have no password (nobody can log in
+ * as them), never show as online, can't be messaged, and are flagged `starter` so the owner can remove
+ * everything in one click. */
 const { checkTrophies } = require('./trophies');
+const THREADS = require('./starterData');
 
-// [username, custom title, bio, location, avatar colour, days since joining]
-const USERS = [
-  ['Isla', '', 'Skincare minimalist. SPF every day.', 'Melbourne', '#f472b6', 58],
-  ['Amara', '', 'Natural hair, 4C. Ask me about wash days.', 'Lagos', '#a855f7', 55],
-  ['Lena', '', 'Pilates + strength training.', 'Berlin', '#ec4899', 54],
-  ['Sofia', '', 'Colour analysis nerd 🎨', 'Madrid', '#db2777', 51],
-  ['Priya', '', 'Brows, lashes and everything in between.', 'Toronto', '#f43f5e', 49],
-  ['Chloe', '', 'Slowly learning makeup.', 'Manchester', '#f472b6', 46],
-  ['Maya', '', 'Posture fixer in progress.', 'Austin', '#c026d3', 44],
-  ['Hana', '', 'K-beauty fan.', 'Seoul', '#ec4899', 41],
-  ['Zara', '', 'Style over trends.', 'London', '#a855f7', 39],
-  ['Elena', '', 'Nutrition student.', 'Milan', '#db2777', 36],
-  ['Nadia', '', 'Here for the glow-up.', 'Paris', '#f43f5e', 33],
-  ['Ruby', '', 'Just vibing.', 'Dublin', '#ec4899', 30],
-];
+const MEMBER_COUNT = 182;
+const FIRST = ['isla', 'amara', 'lena', 'sofia', 'priya', 'chloe', 'maya', 'hana', 'zara', 'elena', 'nadia', 'ruby', 'mia', 'ava', 'lily',
+  'emma', 'grace', 'leah', 'jade', 'noor', 'yasmin', 'aisha', 'freya', 'poppy', 'evie', 'ella', 'sienna', 'luna', 'nina', 'tara', 'kiara',
+  'bella', 'daisy', 'amelia', 'olivia', 'zoe', 'layla', 'mila', 'ivy', 'rosa', 'carmen', 'lucia', 'aria', 'sara', 'imani', 'tia', 'jasmine',
+  'naomi', 'eva', 'clara', 'aliyah', 'skye', 'phoebe', 'lola', 'esme', 'violet', 'georgia', 'holly', 'kayla', 'riley', 'mei', 'yuna', 'anya'];
+const WORDS = ['glow', 'skin', 'beauty', 'lashes', 'brows', 'curls', 'gloss', 'blush', 'rose', 'honey', 'peach', 'cherry', 'pearl', 'velvet', 'silk', 'bloom', 'aura'];
+const BIOS = ['skincare obsessed', 'spf every day ☀️', 'learning makeup slowly', 'gym girlie', 'curly hair journey', 'just here to learn', 'pilates + matcha',
+  'k-beauty fan', 'brow enthusiast', 'colour analysis nerd', 'glow up in progress ✨', 'student, broke, moisturised', 'fashion > everything', ''];
+const PLACES = ['London', 'Manchester', 'Dublin', 'Toronto', 'NYC', 'LA', 'Sydney', 'Melbourne', 'Paris', 'Berlin', 'Madrid', 'Milan', 'Lagos', 'Seoul', 'Tokyo', 'Dubai', 'Austin', ''];
+const COLORS = ['#ec4899', '#f472b6', '#db2777', '#a855f7', '#f43f5e', '#c026d3', '#fb7185', '#e879f9'];
 
-// [forum, author, title, prefix, tags, [ [author, content], ... ]]
-const THREADS = [
-  ['f-skin', 'Isla', 'My 3-step routine that finally cleared my skin', 'guide', ['skincare', 'routine'], [
-    ['Isla', 'After years of 10-step routines, this is what actually worked for me:\n\n[b]AM:[/b] gentle cleanser → moisturiser → SPF 50\n[b]PM:[/b] cleanser → retinoid (3x a week) → moisturiser\n\nThe biggest change was being consistent and not switching products every two weeks. Give anything new at least 6–8 weeks.'],
-    ['Hana', 'Agree on consistency. Which retinoid do you use?'],
-    ['Isla', 'Adapalene 0.1%. Started twice a week and built up slowly.'],
-    ['Chloe', 'Saving this. I definitely over-exfoliate 😅']]],
-  ['f-skin', 'Hana', 'Does double cleansing actually matter?', 'question', ['skincare'], [
-    ['Hana', 'I see it everywhere. Is it worth it if I don\'t wear much makeup?'],
-    ['Isla', 'Only really needed on days you wear SPF or makeup. Otherwise one gentle cleanse is fine.'],
-    ['Elena', 'Same, I only do it at night after sunscreen days.']]],
-  ['f-hair', 'Amara', 'Wash day routine for 4C hair', 'guide', ['hair'], [
-    ['Amara', 'Pre-poo with oil → sulfate-free shampoo → deep condition 30 min with heat → leave-in → seal with oil → protective style.\n\nThe deep condition is the step I\'d never skip.'],
-    ['Priya', 'How often do you trim?'],
-    ['Amara', 'Every 3 months, just dusting the ends.']]],
-  ['f-hair', 'Priya', 'Growing out over-plucked brows: progress after 4 months', 'success', ['brows'], [
-    ['Priya', 'Stopped tweezing completely, brushed them up daily, and let them grow wild for 4 months. They\'re finally filling in! Patience is everything.'],
-    ['Sofia', 'This gives me hope, mine are so thin at the tails.'],
-    ['Nadia', 'Congrats!! The awkward phase is the worst part.']]],
-  ['f-makeup', 'Chloe', 'Beginner here: what are the 5 products I actually need?', 'question', ['makeup'], [
-    ['Chloe', 'Overwhelmed by everything. If you had to start with 5 products, what would they be?'],
-    ['Sofia', 'Skin tint, concealer, brow gel, mascara and a cream blush. That covers 90% of looks.'],
-    ['Hana', 'Add a tinted lip balm and you\'re set.'],
-    ['Chloe', 'Thank you both, this is so helpful 💕']]],
-  ['f-makeup', 'Sofia', 'How I found my colour season (and why it changed my makeup)', 'guide', ['colouranalysis'], [
-    ['Sofia', 'Daylight, no makeup, hair pulled back. Hold gold vs silver fabric under your face and see which makes your skin look clearer. I\'m a soft summer: muted, cool colours. Swapping my warm bronzer for a cool rose blush was a game changer.'],
-    ['Zara', 'Soft summer twins! Dusty pinks forever.'],
-    ['Ruby', 'Doing this tomorrow morning.']]],
-  ['f-fitness', 'Lena', 'Pilates vs weights for a toned look?', 'discussion', ['fitness'], [
-    ['Lena', 'I\'ve done both. Honestly, lifting changed my shape the most, and Pilates helped my posture and core. Doing both is ideal if you have time.'],
-    ['Maya', 'Pilates fixed my lower back pain, so it\'s staying in my week.'],
-    ['Elena', 'And eat enough protein or neither will show results!']]],
-  ['f-fitness', 'Maya', 'Posture check: 30 days of wall angels and chin tucks', 'success', ['posture'], [
-    ['Maya', 'Did 10 minutes every morning for a month. My shoulders sit so much further back and my neck looks longer in photos.'],
-    ['Lena', 'Love this. Rows at the gym helped me too.']]],
-  ['f-nutrition', 'Elena', 'Simple high-protein breakfasts', 'guide', ['nutrition'], [
-    ['Elena', 'Greek yoghurt + berries + granola, eggs on toast, overnight oats with protein powder, cottage cheese bowls. Protein at breakfast keeps me full until lunch.'],
-    ['Lena', 'Overnight oats are my go-to before the gym.'],
-    ['Isla', 'Adding cottage cheese bowls to my list.']]],
-  ['f-style', 'Zara', 'Building a capsule wardrobe: what\'s in yours?', 'discussion', ['style'], [
-    ['Zara', 'Mine: white tee, black tee, straight jeans, black trousers, trench coat, a good blazer, loafers, white trainers. Everything goes with everything.'],
-    ['Sofia', 'Same but in soft summer colours, so navy and grey instead of black.'],
-    ['Nadia', 'A good blazer really does make every outfit look put together.']]],
-  ['f-questions', 'Nadia', 'Where should a total beginner start?', 'question', [], [
-    ['Nadia', 'I want to glow up but don\'t know where to start. What made the biggest difference for you?'],
-    ['Isla', 'Sleep, SPF and drinking water. Boring but true.'],
-    ['Lena', 'Posture and moving every day.'],
-    ['Zara', 'Clothes that actually fit you. Get things tailored!'],
-    ['Nadia', 'Okay, starting with sleep and SPF this week. Thank you!']]],
-  ['f-advice', 'Ruby', 'How do you stop comparing yourself on Instagram?', 'serious', [], [
-    ['Ruby', 'I always feel worse after scrolling. How do you deal with it?'],
-    ['Maya', 'I unfollowed accounts that made me feel bad and followed ones that teach skills instead.'],
-    ['Amara', 'Remember most photos are edited and filtered. Compare yourself to you from last month.']]],
-  ['f-offtopic', 'Ruby', 'What are you listening to right now? 🎧', 'discussion', [], [
-    ['Ruby', 'Drop your current song!'],
-    ['Chloe', 'Gym playlist on repeat lol'],
-    ['Hana', 'NewJeans, always.'],
-    ['Zara', 'Old Amy Winehouse albums.']]],
-  ['f-offtopic', 'Chloe', 'Introduce yourself here! 👋', 'intro', [], [
-    ['Chloe', 'Hi everyone! I\'m Chloe from Manchester, here to learn makeup and skincare. Say hi below!'],
-    ['Isla', 'Hi Chloe! Isla from Melbourne, skincare is my thing.'],
-    ['Amara', 'Amara here, hair care all day 💕'],
-    ['Lena', 'Lena from Berlin, fitness and Pilates.']]],
-];
+/* Small seeded random generator so the same content is produced every time. */
+function rng(seed) {
+  return () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+function makeUsernames(rand, taken) {
+  const pick = (a) => a[Math.floor(rand() * a.length)];
+  const styles = [
+    (n) => n.charAt(0).toUpperCase() + n.slice(1),
+    (n) => n + '_' + (10 + Math.floor(rand() * 90)),
+    (n) => n + '.' + pick(WORDS),
+    (n) => pick(WORDS) + 'by' + n,
+    (n) => 'its' + n,
+    (n) => n + n.slice(-1) + n.slice(-1),
+    (n) => n + 'x' + Math.floor(rand() * 9),
+    (n) => pick(WORDS) + '_' + n,
+    (n) => n.charAt(0).toUpperCase() + n.slice(1) + (2000 + Math.floor(rand() * 10)),
+  ];
+  const out = [];
+  let guard = 0;
+  while (out.length < MEMBER_COUNT && guard++ < 10000) {
+    const name = pick(styles)(pick(FIRST)).slice(0, 24);
+    if (name.length < 3 || taken.has(name.toLowerCase())) continue;
+    taken.add(name.toLowerCase());
+    out.push(name);
+  }
+  return out;
+}
 
 async function addStarterContent(q) {
-  const existing = await q.one('SELECT count(*)::int AS n FROM users WHERE starter');
+  const existing = await q.one('SELECT count(*)::int AS n FROM users WHERE starter AND status <> \'deleted\'');
   if (existing.n) return { created: false, members: existing.n };
-  const ids = {};
-  for (const [name, title, bio, loc, color, days] of USERS) {
-    // Skip names a real member already uses.
-    if (await q.one('SELECT 1 FROM users WHERE lower(username) = lower($1)', [name])) continue;
-    const u = await q.one(`INSERT INTO users (username, email, password_hash, role_id, status, email_verified_at, created_at, last_seen_at, starter)
-      VALUES ($1, NULL, NULL, 'member', 'active', now(), now() - ($2 || ' days')::interval, now() - interval '3 days', true) RETURNING id`, [name, String(days)]);
-    await q.query('INSERT INTO profiles (user_id, custom_title, bio, location, avatar_color) VALUES ($1, $2, $3, $4, $5)', [u.id, title, bio, loc, color]);
-    await q.query("INSERT INTO user_preferences (user_id, show_online, allow_dms, allow_profile_posts) VALUES ($1, false, 'none', 'none')", [u.id]);
-    ids[name] = u.id;
-  }
-  let t0 = Date.now() - 28 * 86400000;
-  let threads = 0;
-  for (const [forum, author, title, prefix, tags, posts] of THREADS) {
-    if (!ids[author] || !(await q.one('SELECT 1 FROM forums WHERE id = $1', [forum]))) continue;
+  const rand = rng(20261002);
+  const pick = (a) => a[Math.floor(rand() * a.length)];
+  const taken = new Set((await q.many('SELECT lower(username) AS u FROM users')).map((r) => r.u));
+  const names = makeUsernames(rand, taken);
+
+  // Members joined 60-180 days ago.
+  const days = names.map(() => 60 + Math.floor(rand() * 120));
+  const users = await q.many(`INSERT INTO users (username, email, password_hash, role_id, status, email_verified_at, created_at, last_seen_at, starter)
+    SELECT u, NULL, NULL, 'member', 'active', now(), now() - (d || ' days')::interval, now() - ((1 + d % 9) || ' days')::interval, true
+    FROM unnest($1::text[], $2::int[]) AS t(u, d) RETURNING id, username`, [names, days]);
+  const ids = users.map((u) => u.id);
+  await q.query(`INSERT INTO profiles (user_id, bio, location, avatar_color)
+    SELECT * FROM unnest($1::bigint[], $2::text[], $3::text[], $4::text[])`,
+  [ids, ids.map(() => pick(BIOS)), ids.map(() => pick(PLACES)), ids.map(() => pick(COLORS))]);
+  await q.query(`INSERT INTO user_preferences (user_id, show_online, allow_dms, allow_profile_posts)
+    SELECT id, false, 'none', 'none' FROM unnest($1::bigint[]) AS id`, [ids]);
+
+  const forums = new Set((await q.many('SELECT id FROM forums')).map((r) => r.id));
+  let threads = 0, posts = 0;
+  const posters = new Set();
+  for (const [forum, prefix, title, opening, replies] of THREADS) {
+    if (!forums.has(forum)) continue;
+    const author = pick(ids);
+    let at = Date.now() - (2 + rand() * 55) * 86400000;
     const t = await q.one(`INSERT INTO threads (forum_id, author_id, title, prefix, rating_enabled, created_at, view_count)
       VALUES ($1, $2, $3, $4, (SELECT rating_enabled FROM forums WHERE id = $1), $5, $6) RETURNING id`,
-    [forum, ids[author], title, prefix, new Date(t0), 30 + Math.floor(Math.random() * 400)]);
-    for (const tag of tags) await q.query('INSERT INTO thread_tags (thread_id, tag) VALUES ($1, $2)', [t.id, tag]);
-    let last = null, n = 0;
-    for (const [who, content] of posts) {
-      if (!ids[who]) continue;
-      t0 += Math.floor(Math.random() * 6 * 3600000) + 30 * 60000;
-      last = await q.one('INSERT INTO posts (thread_id, author_id, content, created_at) VALUES ($1, $2, $3, $4) RETURNING id, created_at', [t.id, ids[who], content, new Date(t0)]);
-      n++;
-      for (const [name, id] of Object.entries(ids)) {
-        if (name !== who && Math.random() < 0.25) await q.query('INSERT INTO reactions (post_id, user_id, reaction) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [last.id, id, ['like', 'love', 'glow'][Math.floor(Math.random() * 3)]]);
+    [forum, author, title, prefix, new Date(at), 40 + Math.floor(rand() * 900)]);
+    const authors = [author], contents = [opening], times = [new Date(at)];
+    for (const r of replies) {
+      at += (10 + rand() * 600) * 60000;            // 10 minutes to 10 hours apart
+      authors.push(pick(ids)); contents.push(r); times.push(new Date(Math.min(at, Date.now() - 60000)));
+    }
+    const rows = await q.many(`INSERT INTO posts (thread_id, author_id, content, created_at)
+      SELECT $1, a, c, ts FROM unnest($2::bigint[], $3::text[], $4::timestamptz[]) AS t(a, c, ts) RETURNING id, author_id, created_at`,
+    [t.id, authors, contents, times]);
+    authors.forEach((a) => posters.add(a));
+    // A few reactions per post from other starter members.
+    const rPost = [], rUser = [], rKind = [];
+    for (const p of rows) {
+      const n = Math.floor(rand() * 6);
+      const seen = new Set([String(p.author_id)]);
+      for (let i = 0; i < n; i++) {
+        const u = pick(ids);
+        if (seen.has(String(u))) continue;
+        seen.add(String(u));
+        rPost.push(p.id); rUser.push(u); rKind.push(pick(['like', 'like', 'love', 'glow']));
       }
     }
+    if (rPost.length) await q.query('INSERT INTO reactions (post_id, user_id, reaction) SELECT * FROM unnest($1::bigint[], $2::bigint[], $3::text[]) ON CONFLICT DO NOTHING', [rPost, rUser, rKind]);
+    const last = rows.reduce((a, b) => (new Date(b.created_at) > new Date(a.created_at) ? b : a));
     await q.query('UPDATE threads SET first_post_id = (SELECT min(id) FROM posts WHERE thread_id = $1), last_post_id = $2, last_post_at = $3, reply_count = $4 WHERE id = $1',
-      [t.id, last.id, last.created_at, Math.max(0, n - 1)]);
-    threads++;
-    t0 += 10 * 3600000;
+      [t.id, last.id, last.created_at, rows.length - 1]);
+    threads++; posts += rows.length;
   }
-  for (const id of Object.values(ids)) await checkTrophies(q, id);
-  return { created: true, members: Object.keys(ids).length, threads };
+  for (const id of posters) await checkTrophies(q, id);
+  return { created: true, members: ids.length, threads, posts };
 }
 
 /* Removes the starter threads and posts (soft delete, like moderation) and closes the accounts. */
@@ -137,4 +119,4 @@ async function removeStarterContent(q) {
   return { removed: ids.length };
 }
 
-module.exports = { addStarterContent, removeStarterContent, STARTER_USERS: USERS };
+module.exports = { addStarterContent, removeStarterContent, MEMBER_COUNT };

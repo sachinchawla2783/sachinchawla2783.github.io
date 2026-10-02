@@ -350,7 +350,7 @@
     },
     async 'starter-add'() {
       const r = await run(() => api.post('/admin/starter-content'));
-      if (r) { toast(r.created ? 'Added ' + r.members + ' accounts and ' + r.threads + ' threads.' : 'Starter content is already there.'); refresh(); }
+      if (r) { toast(r.created ? 'Added ' + r.members + ' accounts, ' + r.threads + ' threads and ' + r.posts + ' posts.' : 'Starter content is already there.'); refresh(); }
     },
     'starter-remove'() {
       confirmBox('Remove all starter accounts, their threads and posts?', async () => {
